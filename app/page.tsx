@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 
@@ -16,8 +17,10 @@ export default function Home() {
       .select("*")
       .order("created_at", { ascending: false })
 
-    console.log("DATA =>", data)
-    console.log("ERROR =>", error)
+    if (error) {
+      console.log(error)
+      return
+    }
 
     setProjects(data || [])
   }
@@ -26,17 +29,16 @@ export default function Home() {
     const name = prompt("Nombre del proyecto 🎵")
     if (!name) return
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("projects")
       .insert([{ name }])
-      .select()
 
-    console.log("INSERT DATA =>", data)
-    console.log("INSERT ERROR =>", error)
-
-    if (!error) {
-      loadProjects()
+    if (error) {
+      console.log(error)
+      return
     }
+
+    loadProjects()
   }
 
   return (
@@ -53,9 +55,21 @@ export default function Home() {
         )}
 
         {projects.map((p) => (
-          <div key={p.id} style={{ padding: 10, border: "1px solid #ccc", marginTop: 10 }}>
+          <Link
+            key={p.id}
+            href={`/project/${p.id}`}
+            style={{
+              display: "block",
+              padding: 10,
+              border: "1px solid #ccc",
+              borderRadius: 8,
+              marginTop: 10,
+              textDecoration: "none",
+              color: "black",
+            }}
+          >
             🎼 {p.name}
-          </div>
+          </Link>
         ))}
       </div>
     </div>
