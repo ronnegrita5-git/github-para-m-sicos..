@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "../../context/AuthContext"  // 👈 RUTA CORREGIDA
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 export default function ProjectPage({ params }: any) {
   const { id } = use(params)
@@ -16,6 +17,9 @@ export default function ProjectPage({ params }: any) {
   const [loading, setLoading] = useState(true)
   const [instrument, setInstrument] = useState("guitarra")
   const [playingAll, setPlayingAll] = useState(false)
+  const [isOwner, setIsOwner] = useState(false)
+  const [isPublic, setIsPublic] = useState(true)
+  const [updatingVisibility, setUpdatingVisibility] = useState(false)
 
   useEffect(() => {
     if (!user) {
@@ -34,37 +38,83 @@ export default function ProjectPage({ params }: any) {
       .single()
 
     setProject(data)
+    if (data && user) {
+      const owner = data.user_id === user.id
+      setIsOwner(owner)
+      setIsPublic(data.is_public !== false)
+      console.log("👤 Dueño del proyecto:", data.user_id)
+      console.log("👤 Usuario actual:", user.id)
+      console.log("🏷️ Es dueño:", owner)
+    }
   }
 
   async function loadTracks() {
     setLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("tracks")
       .select("*")
       .eq("project_id", id)
       .order("created_at", { ascending: true })
 
-    setTracks(data || [])
+    if (error) {
+      console.error("❌ Error al cargar pistas:", error)
+    } else {
+      setTracks(data || [])
+    }
     setLoading(false)
   }
 
   async function addTrack() {
+    if (!isOwner) {
+      alert("Solo el dueño del proyecto puede añadir pistas")
+      return
+    }
+
     const name = prompt("Nombre de la pista 🎵")
     if (!name) return
 
-    await supabase.from("tracks").insert([
-      {
-        name,
-        instrument: instrument,
-        project_id: id,
-        user_id: user?.id,
-      },
-    ])
+    console.log("📝 Creando pista:", {
+      name,
+      instrument,
+      project_id: id,
+      user_id: user?.id
+    })
 
-    loadTracks()
+    try {
+      const { data, error } = await supabase
+        .from("tracks")
+        .insert([
+          {
+            name,
+            instrument: instrument,
+            project_id: id,
+            user_id: user?.id,
+          },
+        ])
+        .select()
+
+      if (error) {
+        console.error("❌ Error al añadir pista:", error)
+        alert("Error al añadir pista: " + error.message)
+        return
+      }
+
+      console.log("✅ Pista creada:", data)
+      alert("✅ Pista añadida correctamente")
+      loadTracks()
+
+    } catch (error: any) {
+      console.error("❌ Error inesperado:", error)
+      alert("Error inesperado: " + (error.message || "Error desconocido"))
+    }
   }
 
   async function uploadAudio(e: any, trackId: string) {
+    if (!isOwner) {
+      alert("Solo el dueño del proyecto puede subir audio")
+      return
+    }
+
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -72,30 +122,49 @@ export default function ProjectPage({ params }: any) {
 
     const fileName = `${id}/${Date.now()}-${file.name}`
 
-    const { error: uploadError } = await supabase.storage
-      .from("audio")
-      .upload(fileName, file)
+    try {
+      // 1. Subir a Storage
+      const { error: uploadError } = await supabase.storage
+        .from("audio")
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        })
 
-    if (uploadError) {
-      console.error("UPLOAD ERROR:", uploadError)
-      alert("Error al subir el archivo: " + uploadError.message)
+      if (uploadError) {
+        console.error("❌ Error al subir:", uploadError)
+        alert("Error al subir el archivo: " + uploadError.message)
+        setUploading(false)
+        return
+      }
+
+      // 2. Obtener URL pública
+      const { data: urlData } = supabase.storage
+        .from("audio")
+        .getPublicUrl(fileName)
+
+      const audioUrl = urlData.publicUrl
+      console.log("✅ Audio subido:", audioUrl)
+
+      // 3. Guardar URL en la base de datos
+      const { error: updateError } = await supabase
+        .from("tracks")
+        .update({ audio_url: audioUrl })
+        .eq("id", trackId)
+
+      if (updateError) {
+        console.error("❌ Error al actualizar:", updateError)
+        alert("Error al guardar la URL: " + updateError.message)
+      }
+
       setUploading(false)
-      return
+      loadTracks()
+
+    } catch (error: any) {
+      console.error("❌ Error inesperado:", error)
+      alert("Error al subir audio: " + (error.message || "Error desconocido"))
+      setUploading(false)
     }
-
-    const { data } = supabase.storage
-      .from("audio")
-      .getPublicUrl(fileName)
-
-    const audioUrl = data.publicUrl
-
-    await supabase
-      .from("tracks")
-      .update({ audio_url: audioUrl })
-      .eq("id", trackId)
-
-    setUploading(false)
-    loadTracks()
   }
 
   function handleVolumeChange(e: React.ChangeEvent<HTMLInputElement>, audioUrl: string) {
@@ -109,6 +178,11 @@ export default function ProjectPage({ params }: any) {
   }
 
   async function deleteTrack(trackId: string) {
+    if (!isOwner) {
+      alert("Solo el dueño del proyecto puede eliminar pistas")
+      return
+    }
+
     if (!confirm("¿Seguro que quieres eliminar esta pista?")) return
 
     await supabase
@@ -136,52 +210,205 @@ export default function ProjectPage({ params }: any) {
     }
   }
 
+  async function toggleVisibility() {
+    if (!isOwner) {
+      alert("Solo el dueño del proyecto puede cambiar la visibilidad")
+      return
+    }
+
+    setUpdatingVisibility(true)
+    const newVisibility = !isPublic
+
+    const { error } = await supabase
+      .from("projects")
+      .update({ is_public: newVisibility })
+      .eq("id", id)
+
+    if (error) {
+      alert("Error al cambiar visibilidad: " + error.message)
+    } else {
+      setIsPublic(newVisibility)
+      alert(newVisibility ? "✅ Proyecto ahora es PÚBLICO" : "🔒 Proyecto ahora es PRIVADO")
+    }
+
+    setUpdatingVisibility(false)
+  }
+
+  async function deleteProjectFromPage() {
+    if (!isOwner) {
+      alert("Solo el dueño puede eliminar el proyecto")
+      return
+    }
+
+    if (!confirm(`¿Seguro que quieres eliminar el proyecto "${project?.name}"?\n\n⚠️ Esta acción eliminará TODAS las pistas y no se puede deshacer.`)) {
+      return
+    }
+
+    try {
+      const { data: tracks, error: tracksError } = await supabase
+        .from("tracks")
+        .select("audio_url")
+        .eq("project_id", id)
+
+      if (tracksError) {
+        console.error("Error al obtener pistas:", tracksError)
+      }
+
+      if (tracks && tracks.length > 0) {
+        for (const track of tracks) {
+          if (track.audio_url) {
+            const fileName = track.audio_url.split('/').pop()
+            if (fileName) {
+              await supabase.storage
+                .from("audio")
+                .remove([`${id}/${fileName}`])
+            }
+          }
+        }
+      }
+
+      await supabase
+        .from("tracks")
+        .delete()
+        .eq("project_id", id)
+
+      const { error: deleteProjectError } = await supabase
+        .from("projects")
+        .delete()
+        .eq("id", id)
+
+      if (deleteProjectError) {
+        alert("Error al eliminar proyecto: " + deleteProjectError.message)
+        return
+      }
+
+      alert(`✅ Proyecto "${project?.name}" eliminado correctamente`)
+      router.push("/")
+
+    } catch (error: any) {
+      alert("Error al eliminar proyecto: " + (error.message || "Error desconocido"))
+    }
+  }
+
   async function forkProject() {
-    if (!project) return
+    if (!project) {
+      alert("No hay proyecto para hacer fork");
+      return;
+    }
 
     const newName = prompt("Nombre para el fork:", `${project.name} (fork)`)
     if (!newName) return
 
-    const { data: newProject, error } = await supabase
-      .from("projects")
-      .insert([
-        {
-          name: newName,
-          description: `Fork de "${project.name}"`,
-          user_id: user?.id,
-          is_public: true,
-        },
-      ])
-      .select()
-      .single()
+    try {
+      const { data: newProject, error: projectError } = await supabase
+        .from("projects")
+        .insert([
+          {
+            name: newName,
+            description: `Fork de "${project.name}"`,
+            user_id: user?.id,
+            is_public: true,
+          },
+        ])
+        .select()
+        .single()
 
-    if (error) {
-      alert("Error al hacer fork: " + error.message)
-      return
+      if (projectError) {
+        console.error("Error al crear proyecto:", projectError);
+        alert("Error al crear fork: " + projectError.message);
+        return;
+      }
+
+      const { data: tracksData, error: tracksError } = await supabase
+        .from("tracks")
+        .select("*")
+        .eq("project_id", project.id);
+
+      if (tracksError) {
+        console.error("Error al obtener pistas:", tracksError);
+        alert("Error al copiar pistas: " + tracksError.message);
+        return;
+      }
+
+      if (tracksData && tracksData.length > 0) {
+        for (const track of tracksData) {
+          await supabase.from("tracks").insert([
+            {
+              name: track.name,
+              instrument: track.instrument || null,
+              project_id: newProject.id,
+              audio_url: track.audio_url || null,
+              user_id: user?.id,
+            },
+          ]);
+        }
+      }
+
+      alert(`✅ Fork creado exitosamente: "${newName}"`);
+      router.push(`/project/${newProject.id}`);
+      
+    } catch (error: any) {
+      console.error("Error en fork:", error);
+      alert("Error al hacer fork: " + (error.message || "Error desconocido"));
     }
-
-    for (const track of tracks) {
-      await supabase.from("tracks").insert([
-        {
-          name: track.name,
-          instrument: track.instrument,
-          project_id: newProject.id,
-          audio_url: track.audio_url,
-          user_id: user?.id,
-        },
-      ])
-    }
-
-    alert(`✅ Fork creado: "${newName}"`)
-    router.push(`/project/${newProject.id}`)
   }
 
   if (!user) return null
 
   return (
     <div style={{ padding: 30, fontFamily: "Arial" }}>
+      {isOwner && (
+        <div style={{
+          background: "#f8f9fa",
+          padding: 15,
+          borderRadius: 12,
+          marginBottom: 20,
+          border: "1px solid #dee2e6",
+        }}>
+          <h4 style={{ margin: "0 0 10px 0" }}>⚙️ Panel de control del proyecto</h4>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              onClick={toggleVisibility}
+              disabled={updatingVisibility}
+              style={{
+                padding: "8px 16px",
+                background: isPublic ? "#28a745" : "#6c757d",
+                color: "white",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+              }}
+            >
+              {isPublic ? "🌍 Público" : "🔒 Privado"}
+            </button>
+            
+            <button
+              onClick={deleteProjectFromPage}
+              style={{
+                padding: "8px 16px",
+                background: "#dc3545",
+                color: "white",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+              }}
+            >
+              🗑️ Eliminar proyecto
+            </button>
+          </div>
+          <p style={{ fontSize: 12, color: "#888", marginTop: 8 }}>
+            {isPublic 
+              ? "🌍 Cualquier usuario puede ver y hacer fork de este proyecto" 
+              : "🔒 Solo tú puedes ver y editar este proyecto"}
+          </p>
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1>🎵 {project?.name || "Cargando..."}</h1>
+        <h1>🎵 {project?.name || "Cargando..."}
+          {!isPublic && isOwner && <span style={{ fontSize: 14, color: "#888", marginLeft: 10 }}>🔒</span>}
+          {!isOwner && <span style={{ fontSize: 14, color: "#888", marginLeft: 10 }}>👁️</span>}
+        </h1>
         
         <button
           onClick={forkProject}
@@ -199,28 +426,38 @@ export default function ProjectPage({ params }: any) {
         </button>
       </div>
 
-      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
-        <button onClick={addTrack}>
-          + Añadir pista
-        </button>
+      {!isOwner && (
+        <p style={{ color: "#888", fontStyle: "italic" }}>
+          👁️ Estás viendo este proyecto como visitante. Solo el dueño puede añadir o modificar pistas.
+        </p>
+      )}
 
-        <select
-          value={instrument}
-          onChange={(e) => setInstrument(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 8,
-            border: "1px solid #ccc",
-            fontSize: 14,
-          }}
-        >
-          <option value="guitarra">🎸 Guitarra</option>
-          <option value="voz">🎤 Voz</option>
-          <option value="bajo">🎸 Bajo</option>
-          <option value="bateria">🥁 Batería</option>
-          <option value="teclado">🎹 Teclado</option>
-          <option value="otro">🎧 Otro</option>
-        </select>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
+        {isOwner && (
+          <button onClick={addTrack}>
+            + Añadir pista
+          </button>
+        )}
+
+        {isOwner && (
+          <select
+            value={instrument}
+            onChange={(e) => setInstrument(e.target.value)}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: "1px solid #ccc",
+              fontSize: 14,
+            }}
+          >
+            <option value="guitarra">🎸 Guitarra</option>
+            <option value="voz">🎤 Voz</option>
+            <option value="bajo">🎸 Bajo</option>
+            <option value="bateria">🥁 Batería</option>
+            <option value="teclado">🎹 Teclado</option>
+            <option value="otro">🎧 Otro</option>
+          </select>
+        )}
 
         <button
           onClick={playAllTracks}
@@ -235,6 +472,36 @@ export default function ProjectPage({ params }: any) {
         >
           {playingAll ? "⏹ Detener todas" : "▶ Reproducir todas"}
         </button>
+
+        <Link href={`/project/${id}/pr/new`}>
+          <button
+            style={{
+              padding: "8px 16px",
+              background: "#fd7e14",
+              color: "white",
+              border: "none",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            📥 Nueva PR
+          </button>
+        </Link>
+
+        <Link href={`/project/${id}/pr`}>
+          <button
+            style={{
+              padding: "8px 16px",
+              background: "#6c757d",
+              color: "white",
+              border: "none",
+              borderRadius: 8,
+              cursor: "pointer",
+            }}
+          >
+            📋 Ver PRs
+          </button>
+        </Link>
       </div>
 
       <div style={{ marginTop: 20 }}>
@@ -261,30 +528,35 @@ export default function ProjectPage({ params }: any) {
                   </span>
                 </div>
 
-                <button
-                  onClick={() => deleteTrack(t.id)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    fontSize: 18,
-                    padding: "4px 8px",
-                  }}
-                  title="Eliminar pista"
-                >
-                  🗑️
-                </button>
+                {isOwner && (
+                  <button
+                    onClick={() => deleteTrack(t.id)}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: 18,
+                      padding: "4px 8px",
+                      color: "#dc3545",
+                    }}
+                    title="Eliminar pista"
+                  >
+                    🗑️
+                  </button>
+                )}
               </div>
 
               <div style={{ marginTop: 10 }}>
                 {!t.audio_url ? (
                   <>
-                    <input
-                      type="file"
-                      accept="audio/mpeg"
-                      onChange={(e) => uploadAudio(e, t.id)}
-                      disabled={uploading}
-                    />
+                    {isOwner && (
+                      <input
+                        type="file"
+                        accept="audio/mpeg"
+                        onChange={(e) => uploadAudio(e, t.id)}
+                        disabled={uploading}
+                      />
+                    )}
                     {uploading && <p>Subiendo...</p>}
                   </>
                 ) : (

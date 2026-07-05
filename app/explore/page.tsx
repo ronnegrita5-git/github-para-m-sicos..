@@ -24,35 +24,40 @@ export default function ExplorePage() {
   async function loadProjects() {
     setLoading(true)
     
-    // Cargar proyectos públicos (todos los que no sean del usuario actual)
-    let query = supabase
-      .from("projects")
-      .select(`
-        *,
-        tracks (count),
-        profiles (email)
-      `)
-      .eq("is_public", true)
-      .order("created_at", { ascending: false })
+    try {
+      // Consulta simplificada - sin intentar unir con profiles
+      let query = supabase
+        .from("projects")
+        .select("*")
+        .eq("is_public", true)
+        .order("created_at", { ascending: false })
 
-    // Si hay búsqueda, filtrar por nombre
-    if (searchTerm) {
-      query = query.ilike("name", `%${searchTerm}%`)
-    }
+      // Si hay búsqueda, filtrar por nombre
+      if (searchTerm) {
+        query = query.ilike("name", `%${searchTerm}%`)
+      }
 
-    const { data, error } = await query
+      const { data, error } = await query
 
-    if (error) {
-      console.error("Error al cargar proyectos:", error)
+      if (error) {
+        console.error("Error al cargar proyectos:", error)
+        setProjects([])
+      } else {
+        setProjects(data || [])
+      }
+    } catch (err) {
+      console.error("Error inesperado:", err)
       setProjects([])
-    } else {
-      setProjects(data || [])
     }
+    
     setLoading(false)
   }
 
+  // Recargar cuando cambie el término de búsqueda
   useEffect(() => {
-    loadProjects()
+    if (user) {
+      loadProjects()
+    }
   }, [searchTerm])
 
   async function forkProject(project: any) {
@@ -62,51 +67,58 @@ export default function ExplorePage() {
 
     if (!newName) return
 
-    // 1. Crear nuevo proyecto (copia)
-    const { data: newProject, error: projectError } = await supabase
-      .from("projects")
-      .insert([
-        {
-          name: newName,
-          description: `Fork de "${project.name}"`,
-          user_id: user?.id,
-          is_public: true,
-        },
-      ])
-      .select()
-      .single()
+    try {
+      // 1. Crear nuevo proyecto (copia)
+      const { data: newProject, error: projectError } = await supabase
+        .from("projects")
+        .insert([
+          {
+            name: newName,
+            description: `Fork de "${project.name}"`,
+            user_id: user?.id,
+            is_public: true,
+          },
+        ])
+        .select()
+        .single()
 
-    if (projectError) {
-      alert("Error al crear fork: " + projectError.message)
-      return
+      if (projectError) {
+        alert("Error al crear fork: " + projectError.message)
+        return
+      }
+
+      // 2. Obtener todas las pistas del proyecto original
+      const { data: tracks, error: tracksError } = await supabase
+        .from("tracks")
+        .select("*")
+        .eq("project_id", project.id)
+
+      if (tracksError) {
+        alert("Error al copiar pistas: " + tracksError.message)
+        return
+      }
+
+      // 3. Copiar todas las pistas al nuevo proyecto
+      if (tracks && tracks.length > 0) {
+        for (const track of tracks) {
+          await supabase.from("tracks").insert([
+            {
+              name: track.name,
+              instrument: track.instrument,
+              project_id: newProject.id,
+              audio_url: track.audio_url,
+              user_id: user?.id,
+            },
+          ])
+        }
+      }
+
+      alert(`✅ Fork creado: "${newName}"`)
+      router.push(`/project/${newProject.id}`)
+
+    } catch (error: any) {
+      alert("Error al hacer fork: " + (error.message || "Error desconocido"))
     }
-
-    // 2. Obtener todas las pistas del proyecto original
-    const { data: tracks, error: tracksError } = await supabase
-      .from("tracks")
-      .select("*")
-      .eq("project_id", project.id)
-
-    if (tracksError) {
-      alert("Error al copiar pistas: " + tracksError.message)
-      return
-    }
-
-    // 3. Copiar todas las pistas al nuevo proyecto
-    for (const track of tracks || []) {
-      await supabase.from("tracks").insert([
-        {
-          name: track.name,
-          instrument: track.instrument,
-          project_id: newProject.id,
-          audio_url: track.audio_url,
-          user_id: user?.id,
-        },
-      ])
-    }
-
-    alert(`✅ Fork creado: "${newName}"`)
-    router.push(`/project/${newProject.id}`)
   }
 
   if (!user) return null
@@ -169,9 +181,7 @@ export default function ExplorePage() {
                     {p.description || "Sin descripción"}
                   </p>
                   <div style={{ fontSize: 12, color: "#888", marginTop: 5 }}>
-                    👤 {p.profiles?.email?.split("@")[0] || "Usuario anónimo"} · 
-                    📅 {new Date(p.created_at).toLocaleDateString()} · 
-                    🎧 {p.tracks?.[0]?.count || 0} pistas
+                    📅 {new Date(p.created_at).toLocaleDateString()}
                   </div>
                 </div>
                 <div>
