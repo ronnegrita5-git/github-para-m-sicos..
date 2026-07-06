@@ -14,25 +14,18 @@ export default function ExplorePage() {
   const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
-    if (!user) {
-      router.push("/login")
-      return
-    }
     loadProjects()
-  }, [user])
+  }, [searchTerm])
 
   async function loadProjects() {
     setLoading(true)
-    
     try {
-      // Consulta simplificada - sin intentar unir con profiles
       let query = supabase
         .from("projects")
         .select("*")
         .eq("is_public", true)
         .order("created_at", { ascending: false })
 
-      // Si hay búsqueda, filtrar por nombre
       if (searchTerm) {
         query = query.ilike("name", `%${searchTerm}%`)
       }
@@ -49,26 +42,22 @@ export default function ExplorePage() {
       console.error("Error inesperado:", err)
       setProjects([])
     }
-    
     setLoading(false)
   }
 
-  // Recargar cuando cambie el término de búsqueda
-  useEffect(() => {
-    if (user) {
-      loadProjects()
-    }
-  }, [searchTerm])
-
   async function forkProject(project: any) {
+    if (!user) {
+      alert("Debes iniciar sesión para hacer fork")
+      router.push("/login")
+      return
+    }
+
     if (!confirm(`¿Quieres hacer fork de "${project.name}"?`)) return
 
     const newName = prompt("Nombre para tu fork:", `${project.name} (fork)`)
-
     if (!newName) return
 
     try {
-      // 1. Crear nuevo proyecto (copia)
       const { data: newProject, error: projectError } = await supabase
         .from("projects")
         .insert([
@@ -87,7 +76,6 @@ export default function ExplorePage() {
         return
       }
 
-      // 2. Obtener todas las pistas del proyecto original
       const { data: tracks, error: tracksError } = await supabase
         .from("tracks")
         .select("*")
@@ -98,7 +86,6 @@ export default function ExplorePage() {
         return
       }
 
-      // 3. Copiar todas las pistas al nuevo proyecto
       if (tracks && tracks.length > 0) {
         for (const track of tracks) {
           await supabase.from("tracks").insert([
@@ -115,13 +102,14 @@ export default function ExplorePage() {
 
       alert(`✅ Fork creado: "${newName}"`)
       router.push(`/project/${newProject.id}`)
-
     } catch (error: any) {
       alert("Error al hacer fork: " + (error.message || "Error desconocido"))
     }
   }
 
-  if (!user) return null
+  if (!user) {
+    // Mostrar mensaje de login para explorar
+  }
 
   return (
     <div style={{ padding: 30, fontFamily: "Arial", maxWidth: 1200, margin: "0 auto" }}>
@@ -129,10 +117,29 @@ export default function ExplorePage() {
         <h1>🌍 Explorar proyectos</h1>
         <div style={{ display: "flex", gap: 10 }}>
           <Link href="/" style={{ textDecoration: "none", color: "#2b8a3e" }}>
-            ← Mis proyectos
+            ← Inicio
           </Link>
+          {user && (
+            <Link href="/dashboard" style={{ textDecoration: "none", color: "#2b8a3e" }}>
+              🎸 Mis proyectos
+            </Link>
+          )}
         </div>
       </div>
+
+      {!user && (
+        <div style={{
+          background: "#f0f0f0",
+          padding: 15,
+          borderRadius: 8,
+          marginBottom: 20,
+          textAlign: "center"
+        }}>
+          <p>
+            👋 <Link href="/login" style={{ color: "#2b8a3e", fontWeight: "bold" }}>Inicia sesión</Link> para hacer fork de proyectos.
+          </p>
+        </div>
+      )}
 
       <div style={{ marginTop: 20 }}>
         <input
@@ -185,20 +192,38 @@ export default function ExplorePage() {
                   </div>
                 </div>
                 <div>
-                  <button
-                    onClick={() => forkProject(p)}
-                    style={{
-                      padding: "8px 16px",
-                      background: "#6f42c1",
-                      color: "white",
-                      border: "none",
-                      borderRadius: 8,
-                      cursor: "pointer",
-                      fontSize: 14,
-                    }}
-                  >
-                    🔀 Fork
-                  </button>
+                  {user ? (
+                    <button
+                      onClick={() => forkProject(p)}
+                      style={{
+                        padding: "8px 16px",
+                        background: "#6f42c1",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        fontSize: 14,
+                      }}
+                    >
+                      🔀 Fork
+                    </button>
+                  ) : (
+                    <Link href="/login">
+                      <button
+                        style={{
+                          padding: "8px 16px",
+                          background: "#6c757d",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          fontSize: 14,
+                        }}
+                      >
+                        🔀 Fork (login)
+                      </button>
+                    </Link>
+                  )}
                 </div>
               </div>
             ))}

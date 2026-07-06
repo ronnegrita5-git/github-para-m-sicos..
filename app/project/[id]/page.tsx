@@ -22,13 +22,9 @@ export default function ProjectPage({ params }: any) {
   const [updatingVisibility, setUpdatingVisibility] = useState(false)
 
   useEffect(() => {
-    if (!user) {
-      router.push("/login")
-      return
-    }
     loadProject()
     loadTracks()
-  }, [id, user])
+  }, [id])
 
   async function loadProject() {
     const { data } = await supabase
@@ -62,6 +58,12 @@ export default function ProjectPage({ params }: any) {
   }
 
   async function addTrack() {
+    if (!user) {
+      alert("Debes iniciar sesión para añadir pistas")
+      router.push("/login")
+      return
+    }
+
     if (!isOwner) {
       alert("Solo el dueño del proyecto puede añadir pistas")
       return
@@ -98,6 +100,12 @@ export default function ProjectPage({ params }: any) {
   }
 
   async function uploadAudio(e: any, trackId: string) {
+    if (!user) {
+      alert("Debes iniciar sesión para subir audio")
+      router.push("/login")
+      return
+    }
+
     if (!isOwner) {
       alert("Solo el dueño del proyecto puede subir audio")
       return
@@ -161,6 +169,12 @@ export default function ProjectPage({ params }: any) {
   }
 
   async function deleteTrack(trackId: string) {
+    if (!user) {
+      alert("Debes iniciar sesión para eliminar pistas")
+      router.push("/login")
+      return
+    }
+
     if (!isOwner) {
       alert("Solo el dueño del proyecto puede eliminar pistas")
       return
@@ -194,6 +208,12 @@ export default function ProjectPage({ params }: any) {
   }
 
   async function toggleVisibility() {
+    if (!user) {
+      alert("Debes iniciar sesión para cambiar visibilidad")
+      router.push("/login")
+      return
+    }
+
     if (!isOwner) {
       alert("Solo el dueño del proyecto puede cambiar la visibilidad")
       return
@@ -218,6 +238,12 @@ export default function ProjectPage({ params }: any) {
   }
 
   async function deleteProjectFromPage() {
+    if (!user) {
+      alert("Debes iniciar sesión para eliminar el proyecto")
+      router.push("/login")
+      return
+    }
+
     if (!isOwner) {
       alert("Solo el dueño puede eliminar el proyecto")
       return
@@ -273,6 +299,12 @@ export default function ProjectPage({ params }: any) {
   }
 
   async function forkProject() {
+    if (!user) {
+      alert("Debes iniciar sesión para hacer fork")
+      router.push("/login")
+      return
+    }
+
     if (!project) {
       alert("No hay proyecto para hacer fork")
       return
@@ -333,8 +365,6 @@ export default function ProjectPage({ params }: any) {
       alert("Error al hacer fork: " + (error.message || "Error desconocido"))
     }
   }
-
-  if (!user) return null
 
   return (
     <div style={{ padding: 30, fontFamily: "Arial" }}>
