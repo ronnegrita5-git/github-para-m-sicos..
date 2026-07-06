@@ -7,10 +7,11 @@ import { useRouter } from "next/navigation"
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [fullName, setFullName] = useState("")
   const [isLogin, setIsLogin] = useState(true)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const { signIn, signUp } = useAuth()
+  const { signIn, signUp, signInWithGoogle } = useAuth()
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent) {
@@ -22,13 +23,25 @@ export default function LoginPage() {
       if (isLogin) {
         await signIn(email, password)
       } else {
-        await signUp(email, password)
+        await signUp(email, password, { full_name: fullName })
       }
       router.push("/dashboard")
     } catch (err: any) {
       setError(err.message || "Error al iniciar sesión")
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleGoogleLogin() {
+    console.log("🔵 Botón de Google clicado")
+    try {
+      console.log("🔵 Llamando a signInWithGoogle...")
+      await signInWithGoogle()
+      console.log("✅ signInWithGoogle completado")
+    } catch (err: any) {
+      console.error("❌ Error:", err)
+      setError(err.message || "Error al iniciar sesión con Google")
     }
   }
 
@@ -49,7 +62,7 @@ export default function LoginPage() {
         borderRadius: 20,
         border: "1px solid rgba(255,255,255,0.1)",
         width: "100%",
-        maxWidth: 400,
+        maxWidth: 420,
         boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
       }}>
         <div style={{ textAlign: "center", marginBottom: 30 }}>
@@ -62,7 +75,77 @@ export default function LoginPage() {
           </p>
         </div>
 
+        <button
+          onClick={handleGoogleLogin}
+          style={{
+            width: "100%",
+            padding: "14px 16px",
+            background: "white",
+            color: "#333",
+            border: "1px solid #ddd",
+            borderRadius: 12,
+            cursor: "pointer",
+            fontSize: 16,
+            fontWeight: "600",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            transition: "all 0.3s ease",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#f8f9fa"
+            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)"
+            e.currentTarget.style.transform = "scale(1.01)"
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "white"
+            e.currentTarget.style.boxShadow = "0 2px 4px rgba(0,0,0,0.1)"
+            e.currentTarget.style.transform = "scale(1)"
+          }}
+        >
+          <img 
+            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+            alt="Google" 
+            style={{ width: 24, height: 24 }} 
+          />
+          <span>Continuar con Google</span>
+        </button>
+
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginTop: 20,
+          marginBottom: 20,
+        }}>
+          <div style={{ flex: 1, borderBottom: "1px solid rgba(255,255,255,0.2)" }} />
+          <span style={{ color: "#888", fontSize: 12 }}>o con email</span>
+          <div style={{ flex: 1, borderBottom: "1px solid rgba(255,255,255,0.2)" }} />
+        </div>
+
         <form onSubmit={handleSubmit}>
+          {!isLogin && (
+            <input
+              type="text"
+              placeholder="Nombre completo (opcional)"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              style={{
+                width: "100%",
+                padding: 12,
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.2)",
+                background: "rgba(255,255,255,0.1)",
+                color: "white",
+                fontSize: 16,
+                marginBottom: 12,
+                outline: "none",
+              }}
+            />
+          )}
+
           <input
             type="email"
             placeholder="Email"
@@ -120,7 +203,6 @@ export default function LoginPage() {
               cursor: "pointer",
               fontSize: 16,
               fontWeight: "bold",
-              transition: "background 0.3s",
               marginTop: 10,
             }}
           >
