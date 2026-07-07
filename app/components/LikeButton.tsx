@@ -120,7 +120,6 @@ export default function LikeButton({ projectId }: LikeButtonProps) {
         display: "flex",
         alignItems: "center",
         gap: 8,
-        background: "none",
         border: "none",
         cursor: "pointer",
         fontSize: 16,
