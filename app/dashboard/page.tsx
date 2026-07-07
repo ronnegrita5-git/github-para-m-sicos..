@@ -5,6 +5,7 @@ import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import { useRouter } from "next/navigation"
+import Breadcrumbs from "../components/Breadcrumbs"
 
 export default function DashboardPage() {
   const { user, signOut } = useAuth()
@@ -43,7 +44,7 @@ export default function DashboardPage() {
     }
 
     if (!user) {
-      alert("No has iniciado sesión. Por favor, inicia sesión de nuevo.")
+      alert("No has iniciado sesión")
       router.push("/login")
       return
     }
@@ -72,7 +73,7 @@ export default function DashboardPage() {
   }
 
   async function deleteProject(projectId: string, projectName: string) {
-    if (!confirm(`¿Seguro que quieres eliminar el proyecto "${projectName}"?\n\n⚠️ Esta acción eliminará TODAS las pistas y no se puede deshacer.`)) {
+    if (!confirm(`¿Seguro que quieres eliminar el proyecto "${projectName}"?`)) {
       return
     }
 
@@ -110,9 +111,8 @@ export default function DashboardPage() {
         return
       }
 
-      alert(`✅ Proyecto "${projectName}" eliminado correctamente`)
+      alert(`✅ Proyecto "${projectName}" eliminado`)
       loadProjects()
-
     } catch (error: any) {
       alert("Error al eliminar proyecto: " + (error.message || "Error desconocido"))
     }
@@ -127,6 +127,8 @@ export default function DashboardPage() {
       fontFamily: "Arial, sans-serif",
       padding: 20
     }}>
+      <Breadcrumbs />
+      
       <div style={{
         maxWidth: 1200,
         margin: "0 auto",
@@ -145,6 +147,9 @@ export default function DashboardPage() {
         <div style={{ display: "flex", gap: 15, alignItems: "center", flexWrap: "wrap" }}>
           <Link href="/explore" style={{ color: "#a78bfa", textDecoration: "none", fontSize: 14 }}>
             🌍 Explorar
+          </Link>
+          <Link href={`/user/${user.id}`} style={{ color: "#a78bfa", textDecoration: "none", fontSize: 14 }}>
+            👤 Mi perfil público
           </Link>
           <span style={{ color: "#c4b5fd", fontSize: 14 }}>
             👤 {user.email}

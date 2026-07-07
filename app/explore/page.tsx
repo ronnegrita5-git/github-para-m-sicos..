@@ -5,6 +5,7 @@ import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import { useRouter } from "next/navigation"
+import Breadcrumbs from "../components/Breadcrumbs"
 
 export default function ExplorePage() {
   const { user } = useAuth()
@@ -23,7 +24,6 @@ export default function ExplorePage() {
       let query = supabase
         .from("projects")
         .select("*")
-        .eq("is_public", true)
         .order("created_at", { ascending: false })
 
       if (searchTerm) {
@@ -107,13 +107,11 @@ export default function ExplorePage() {
     }
   }
 
-  if (!user) {
-    // Mostrar mensaje de login para explorar
-  }
-
   return (
     <div style={{ padding: 30, fontFamily: "Arial", maxWidth: 1200, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <Breadcrumbs />
+      
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 }}>
         <h1>🌍 Explorar proyectos</h1>
         <div style={{ display: "flex", gap: 10 }}>
           <Link href="/" style={{ textDecoration: "none", color: "#2b8a3e" }}>
@@ -163,7 +161,7 @@ export default function ExplorePage() {
           <p>Cargando proyectos...</p>
         ) : projects.length === 0 ? (
           <p style={{ textAlign: "center", color: "#666", marginTop: 40 }}>
-            {searchTerm ? "No se encontraron proyectos con ese nombre" : "No hay proyectos públicos todavía"}
+            {searchTerm ? "No se encontraron proyectos" : "No hay proyectos todavía"}
           </p>
         ) : (
           <div style={{ display: "grid", gap: 16 }}>
