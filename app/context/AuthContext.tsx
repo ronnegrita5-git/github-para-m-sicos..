@@ -109,10 +109,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/dashboard")
   }
 
-  // 👈 GOOGLE LOGIN CON URL DE PRODUCCIÓN
   const signInWithGoogle = async () => {
-    const redirectUrl = 'https://github-para-musicos.vercel.app'
-    console.log("🔵 Redirigiendo a:", redirectUrl)
+    // 👈 URL CORREGIDA CON -i52y
+    const redirectUrl = 'https://github-para-musicos-i52y.vercel.app'
+    console.log("🔵 Redirigiendo a Google con callback:", redirectUrl)
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
