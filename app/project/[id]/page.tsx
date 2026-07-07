@@ -1,6 +1,6 @@
 "use client"
 
-import { use, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { useRouter } from "next/navigation"
@@ -12,7 +12,7 @@ import WebRecorder from "../../components/WebRecorder"
 import MultiUpload from "../../components/MultiUpload"
 
 export default function ProjectPage({ params }: any) {
-  const { id } = use(params)
+  const { id } = params
   const { user } = useAuth()
   const router = useRouter()
 
@@ -342,7 +342,6 @@ export default function ProjectPage({ params }: any) {
     }
   }
 
-  // 👈 Función para descargar con confirmación
   async function downloadProject() {
     if (!project) return
 
@@ -371,25 +370,26 @@ export default function ProjectPage({ params }: any) {
   if (!user) return null
 
   return (
-    <div style={{ padding: 30, fontFamily: "Arial" }}>
+    <div style={{ padding: 30, fontFamily: "'Inter', sans-serif", maxWidth: 1200, margin: "0 auto" }}>
       <Breadcrumbs />
       
       {isOwner && (
         <div style={{
-          background: "#f8f9fa",
+          background: "rgba(255,255,255,0.03)",
+          backdropFilter: "blur(10px)",
           padding: 15,
           borderRadius: 12,
           marginBottom: 20,
-          border: "1px solid #dee2e6",
+          border: "1px solid rgba(16, 185, 129, 0.15)",
         }}>
-          <h4 style={{ margin: "0 0 10px 0" }}>⚙️ Panel de control</h4>
+          <h4 style={{ margin: "0 0 10px 0", color: "#10b981" }}>⚙️ Panel de control</h4>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               onClick={toggleVisibility}
               disabled={updatingVisibility}
               style={{
                 padding: "8px 16px",
-                background: isPublic ? "#28a745" : "#6c757d",
+                background: isPublic ? "linear-gradient(135deg, #10b981, #059669)" : "#6b7280",
                 color: "white",
                 border: "none",
                 borderRadius: 8,
@@ -403,7 +403,7 @@ export default function ProjectPage({ params }: any) {
               onClick={deleteProjectFromPage}
               style={{
                 padding: "8px 16px",
-                background: "#dc3545",
+                background: "#ef4444",
                 color: "white",
                 border: "none",
                 borderRadius: 8,
@@ -417,7 +417,7 @@ export default function ProjectPage({ params }: any) {
               onClick={downloadProject}
               style={{
                 padding: "8px 16px",
-                background: "#0d6efd",
+                background: "linear-gradient(135deg, #0d6efd, #0b5ed7)",
                 color: "white",
                 border: "none",
                 borderRadius: 8,
@@ -428,7 +428,7 @@ export default function ProjectPage({ params }: any) {
               📥 Descargar proyecto
             </button>
           </div>
-          <p style={{ fontSize: 12, color: "#888", marginTop: 8 }}>
+          <p style={{ fontSize: 12, color: "#6b7280", marginTop: 8 }}>
             {isPublic 
               ? "🌍 Cualquier usuario puede ver y hacer fork de este proyecto" 
               : "🔒 Solo tú puedes ver y editar este proyecto"}
@@ -438,9 +438,9 @@ export default function ProjectPage({ params }: any) {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <h1 style={{ margin: 0 }}>🎵 {project?.name || "Cargando..."}</h1>
+          <h1 style={{ margin: 0, color: "white" }}>🎵 {project?.name || "Cargando..."}</h1>
           {project && (
-            <Link href={`/user/${project.user_id}`} style={{ color: "#2b8a3e", textDecoration: "none", fontSize: 14 }}>
+            <Link href={`/user/${project.user_id}`} style={{ color: "#10b981", textDecoration: "none", fontSize: 14 }}>
               👤 Ver perfil del creador
             </Link>
           )}
@@ -450,7 +450,7 @@ export default function ProjectPage({ params }: any) {
           onClick={forkProject}
           style={{
             padding: "8px 16px",
-            background: "#6f42c1",
+            background: "linear-gradient(135deg, #6f42c1, #5a32a3)",
             color: "white",
             border: "none",
             borderRadius: 8,
@@ -466,7 +466,7 @@ export default function ProjectPage({ params }: any) {
             onClick={downloadProject}
             style={{
               padding: "8px 16px",
-              background: "#0d6efd",
+              background: "linear-gradient(135deg, #0d6efd, #0b5ed7)",
               color: "white",
               border: "none",
               borderRadius: 8,
@@ -485,14 +485,21 @@ export default function ProjectPage({ params }: any) {
       </div>
 
       {!isOwner && (
-        <p style={{ color: "#888", fontStyle: "italic" }}>
+        <p style={{ color: "#6b7280", fontStyle: "italic" }}>
           👁️ Estás viendo este proyecto como visitante.
         </p>
       )}
 
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginTop: 10 }}>
         {isOwner && (
-          <button onClick={addTrack}>+ Añadir pista</button>
+          <button onClick={addTrack} style={{
+            padding: "8px 16px",
+            background: "linear-gradient(135deg, #10b981, #059669)",
+            color: "white",
+            border: "none",
+            borderRadius: 8,
+            cursor: "pointer",
+          }}>+ Añadir pista</button>
         )}
 
         {isOwner && (
@@ -502,7 +509,9 @@ export default function ProjectPage({ params }: any) {
             style={{
               padding: "8px 12px",
               borderRadius: 8,
-              border: "1px solid #ccc",
+              border: "1px solid rgba(16, 185, 129, 0.2)",
+              background: "rgba(255,255,255,0.05)",
+              color: "white",
               fontSize: 14,
             }}
           >
@@ -519,7 +528,7 @@ export default function ProjectPage({ params }: any) {
           onClick={playAllTracks}
           style={{
             padding: "8px 16px",
-            background: playingAll ? "#dc3545" : "#0d6efd",
+            background: playingAll ? "#dc3545" : "linear-gradient(135deg, #0d6efd, #0b5ed7)",
             color: "white",
             border: "none",
             borderRadius: 8,
@@ -534,28 +543,29 @@ export default function ProjectPage({ params }: any) {
 
       <div style={{ marginTop: 20 }}>
         {loading ? (
-          <p>Cargando pistas...</p>
+          <p style={{ color: "#6b7280" }}>Cargando pistas...</p>
         ) : tracks.length === 0 ? (
-          <p>No hay pistas todavía...</p>
+          <p style={{ color: "#6b7280" }}>No hay pistas todavía...</p>
         ) : (
           tracks.map((t) => (
             <div
               key={t.id}
               style={{
                 padding: 10,
-                border: "1px solid #ccc",
+                border: "1px solid rgba(16, 185, 129, 0.1)",
                 marginTop: 10,
                 borderRadius: 8,
+                background: "rgba(255,255,255,0.03)",
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   🎧 {t.name}{" "}
-                  <span style={{ fontSize: 12, color: "#888" }}>
+                  <span style={{ fontSize: 12, color: "#6b7280" }}>
                     ({t.instrument || "sin instrumento"})
                   </span>
                   {t.source && (
-                    <span style={{ fontSize: 10, color: "#888", marginLeft: 5 }}>
+                    <span style={{ fontSize: 10, color: "#6b7280", marginLeft: 5 }}>
                       {t.source === 'web' ? '🌐' : '💻'}
                     </span>
                   )}
@@ -569,7 +579,7 @@ export default function ProjectPage({ params }: any) {
                       cursor: "pointer",
                       fontSize: 18,
                       padding: "4px 8px",
-                      color: "#dc3545",
+                      color: "#ef4444",
                     }}
                   >
                     🗑️
@@ -587,7 +597,15 @@ export default function ProjectPage({ params }: any) {
                           accept="audio/mpeg"
                           onChange={(e) => uploadAudio(e, t.id)}
                           disabled={uploading}
-                          style={{ marginBottom: 8 }}
+                          style={{ 
+                            marginBottom: 8,
+                            padding: 8,
+                            borderRadius: 8,
+                            border: "1px solid rgba(16, 185, 129, 0.2)",
+                            background: "rgba(255,255,255,0.05)",
+                            color: "white",
+                            width: "100%",
+                          }}
                         />
                         <WebRecorder 
                           projectId={id} 
@@ -596,23 +614,23 @@ export default function ProjectPage({ params }: any) {
                         />
                       </div>
                     )}
-                    {uploading && <p>Subiendo...</p>}
+                    {uploading && <p style={{ color: "#10b981" }}>Subiendo...</p>}
                   </>
                 ) : (
                   <div>
-                    <audio controls src={t.audio_url} />
+                    <audio controls src={t.audio_url} style={{ width: "100%" }} />
                     <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10 }}>
-                      <span style={{ fontSize: 12, color: "#888" }}>🔊</span>
+                      <span style={{ fontSize: 12, color: "#6b7280" }}>🔊</span>
                       <input
                         type="range"
                         min="0"
                         max="1"
                         step="0.01"
                         defaultValue="1"
-                        style={{ width: 120 }}
+                        style={{ width: 120, accentColor: "#10b981" }}
                         onChange={(e) => handleVolumeChange(e, t.audio_url!)}
                       />
-                      <span style={{ fontSize: 12, color: "#888" }}>Volumen</span>
+                      <span style={{ fontSize: 12, color: "#6b7280" }}>Volumen</span>
                     </div>
                   </div>
                 )}
