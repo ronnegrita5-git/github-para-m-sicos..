@@ -65,6 +65,14 @@ export async function GET(request: NextRequest) {
 
     // Añadir pistas de audio
     const audioFolder = zip.folder('audio')
+    
+    // 👈 Verificar que audioFolder no es null
+    if (!audioFolder) {
+      return NextResponse.json(
+        { error: 'Error al crear carpeta de audio' },
+        { status: 500 }
+      )
+    }
 
     for (const track of tracks) {
       if (track.audio_url) {
