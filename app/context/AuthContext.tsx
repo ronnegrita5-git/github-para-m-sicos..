@@ -109,13 +109,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/dashboard")
   }
 
-  // 👈 GOOGLE LOGIN CON URL DINÁMICA
+  // 👈 GOOGLE LOGIN CON URL DE PRODUCCIÓN
   const signInWithGoogle = async () => {
-    const redirectUrl = typeof window !== 'undefined' 
-      ? window.location.origin 
-      : process.env.NEXT_PUBLIC_VERCEL_URL 
-        ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-        : 'http://localhost:3000'
+    const redirectUrl = 'https://github-para-musicos.vercel.app'
+    console.log("🔵 Redirigiendo a:", redirectUrl)
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
