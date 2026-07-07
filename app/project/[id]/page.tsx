@@ -7,6 +7,9 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Breadcrumbs from "../../components/Breadcrumbs"
 import LikeButton from "../../components/LikeButton"
+import CommentSection from "../../components/CommentSection"
+import WebRecorder from "../../components/WebRecorder"
+import MultiUpload from "../../components/MultiUpload"
 
 export default function ProjectPage({ params }: any) {
   const { id } = use(params)
@@ -135,7 +138,10 @@ export default function ProjectPage({ params }: any) {
 
       const { error: updateError } = await supabase
         .from("tracks")
-        .update({ audio_url: audioUrl })
+        .update({ 
+          audio_url: audioUrl,
+          source: 'local'
+        })
         .eq("id", trackId)
 
       if (updateError) {
@@ -336,13 +342,38 @@ export default function ProjectPage({ params }: any) {
     }
   }
 
+  // 👈 Función para descargar con confirmación
+  async function downloadProject() {
+    if (!project) return
+
+    const totalTracks = tracks.length
+    const hasAudio = tracks.filter(t => t.audio_url).length
+    
+    const confirmMessage = 
+      `📥 ¿Descargar proyecto "${project.name}"?\n\n` +
+      `📁 ${totalTracks} pistas totales\n` +
+      `🎵 ${hasAudio} pistas con audio\n` +
+      `📦 El archivo se descargará en formato ZIP\n\n` +
+      `¿Quieres continuar?`
+
+    if (!confirm(confirmMessage)) {
+      return
+    }
+
+    try {
+      window.location.href = `/api/download-project?projectId=${id}`
+    } catch (error) {
+      console.error("Error al descargar:", error)
+      alert("Error al descargar el proyecto")
+    }
+  }
+
   if (!user) return null
 
   return (
     <div style={{ padding: 30, fontFamily: "Arial" }}>
       <Breadcrumbs />
       
-      {/* Panel de control del proyecto (solo para el dueño) */}
       {isOwner && (
         <div style={{
           background: "#f8f9fa",
@@ -381,6 +412,21 @@ export default function ProjectPage({ params }: any) {
             >
               🗑️ Eliminar proyecto
             </button>
+
+            <button
+              onClick={downloadProject}
+              style={{
+                padding: "8px 16px",
+                background: "#0d6efd",
+                color: "white",
+                border: "none",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontSize: 14,
+              }}
+            >
+              📥 Descargar proyecto
+            </button>
           </div>
           <p style={{ fontSize: 12, color: "#888", marginTop: 8 }}>
             {isPublic 
@@ -390,7 +436,6 @@ export default function ProjectPage({ params }: any) {
         </div>
       )}
 
-      {/* Cabecera del proyecto */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h1 style={{ margin: 0 }}>🎵 {project?.name || "Cargando..."}</h1>
@@ -415,9 +460,26 @@ export default function ProjectPage({ params }: any) {
         >
           🔀 Fork
         </button>
+
+        {isOwner && (
+          <button
+            onClick={downloadProject}
+            style={{
+              padding: "8px 16px",
+              background: "#0d6efd",
+              color: "white",
+              border: "none",
+              borderRadius: 8,
+              cursor: "pointer",
+              fontSize: 14,
+              marginLeft: 10,
+            }}
+          >
+            📥 Descargar
+          </button>
+        )}
       </div>
 
-      {/* Botón de like */}
       <div style={{ marginTop: 10 }}>
         <LikeButton projectId={id} />
       </div>
@@ -468,6 +530,8 @@ export default function ProjectPage({ params }: any) {
         </button>
       </div>
 
+      <MultiUpload projectId={id} onUploadComplete={loadTracks} />
+
       <div style={{ marginTop: 20 }}>
         {loading ? (
           <p>Cargando pistas...</p>
@@ -490,6 +554,11 @@ export default function ProjectPage({ params }: any) {
                   <span style={{ fontSize: 12, color: "#888" }}>
                     ({t.instrument || "sin instrumento"})
                   </span>
+                  {t.source && (
+                    <span style={{ fontSize: 10, color: "#888", marginLeft: 5 }}>
+                      {t.source === 'web' ? '🌐' : '💻'}
+                    </span>
+                  )}
                 </div>
                 {isOwner && (
                   <button
@@ -512,12 +581,20 @@ export default function ProjectPage({ params }: any) {
                 {!t.audio_url ? (
                   <>
                     {isOwner && (
-                      <input
-                        type="file"
-                        accept="audio/mpeg"
-                        onChange={(e) => uploadAudio(e, t.id)}
-                        disabled={uploading}
-                      />
+                      <div>
+                        <input
+                          type="file"
+                          accept="audio/mpeg"
+                          onChange={(e) => uploadAudio(e, t.id)}
+                          disabled={uploading}
+                          style={{ marginBottom: 8 }}
+                        />
+                        <WebRecorder 
+                          projectId={id} 
+                          trackId={t.id} 
+                          onUploadComplete={loadTracks}
+                        />
+                      </div>
                     )}
                     {uploading && <p>Subiendo...</p>}
                   </>
@@ -544,6 +621,8 @@ export default function ProjectPage({ params }: any) {
           ))
         )}
       </div>
+
+      <CommentSection projectId={id} />
     </div>
   )
 }

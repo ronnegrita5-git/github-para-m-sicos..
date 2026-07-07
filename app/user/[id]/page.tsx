@@ -5,18 +5,21 @@ import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { useAuth } from "@/app/context/AuthContext"
 import Breadcrumbs from "../../components/Breadcrumbs"
+import FollowButton from "../../components/FollowButton"
 
 export default function UserProfilePage({ params }: any) {
   const { id } = use(params)
   const { user } = useAuth()
   const [profile, setProfile] = useState<any>(null)
   const [projects, setProjects] = useState<any[]>([])
+  const [favorites, setFavorites] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isOwnProfile, setIsOwnProfile] = useState(false)
 
   useEffect(() => {
     loadProfile()
     loadProjects()
+    loadFavorites()
   }, [id])
 
   async function loadProfile() {
@@ -44,6 +47,35 @@ export default function UserProfilePage({ params }: any) {
     setProjects(data || [])
   }
 
+  async function loadFavorites() {
+    const { data: likes, error: likesError } = await supabase
+      .from("likes")
+      .select("project_id")
+      .eq("user_id", id)
+
+    if (likesError) {
+      console.error("Error al cargar favoritos:", likesError)
+      return
+    }
+
+    if (likes && likes.length > 0) {
+      const projectIds = likes.map((l) => l.project_id)
+      
+      const { data: projectsData, error: projectsError } = await supabase
+        .from("projects")
+        .select("*")
+        .in("id", projectIds)
+        .eq("is_public", true)
+        .order("created_at", { ascending: false })
+
+      if (!projectsError) {
+        setFavorites(projectsData || [])
+      }
+    } else {
+      setFavorites([])
+    }
+  }
+
   if (loading) return (
     <div style={{ padding: 30, fontFamily: "Arial", textAlign: "center" }}>
       <p>Cargando perfil...</p>
@@ -61,12 +93,10 @@ export default function UserProfilePage({ params }: any) {
     <div style={{ maxWidth: 800, margin: "0 auto", padding: 30, fontFamily: "Arial" }}>
       <Breadcrumbs />
       
-      {/* Enlace para volver */}
       <Link href="/" style={{ color: "#2b8a3e", textDecoration: "none" }}>
         ← Volver al inicio
       </Link>
 
-      {/* Perfil del usuario */}
       <div style={{ 
         background: "white", 
         borderRadius: 16, 
@@ -75,7 +105,6 @@ export default function UserProfilePage({ params }: any) {
         boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
         border: "1px solid #e0e0e0"
       }}>
-        {/* Avatar y nombre */}
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           {profile.avatar_url ? (
             <img 
@@ -112,21 +141,23 @@ export default function UserProfilePage({ params }: any) {
           </div>
         </div>
 
-        {/* Bio */}
+        {/* Botón de seguir */}
+        <div style={{ marginTop: 15 }}>
+          <FollowButton userId={id} />
+        </div>
+
         {profile.bio && (
           <p style={{ marginTop: 15, fontSize: 16, color: "#333" }}>
             {profile.bio}
           </p>
         )}
 
-        {/* Ubicación */}
         {(profile.country || profile.city) && (
           <p style={{ color: "#666", marginTop: 10 }}>
             📍 {[profile.city, profile.country].filter(Boolean).join(", ")}
           </p>
         )}
 
-        {/* Géneros musicales */}
         {profile.genres && profile.genres.length > 0 && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 15 }}>
             {profile.genres.map((g: string) => (
@@ -143,7 +174,6 @@ export default function UserProfilePage({ params }: any) {
           </div>
         )}
 
-        {/* Redes sociales */}
         {profile.social_links && (
           <div style={{ display: "flex", gap: 15, marginTop: 15, flexWrap: "wrap" }}>
             {profile.social_links.instagram && (
@@ -212,6 +242,44 @@ export default function UserProfilePage({ params }: any) {
           </div>
         )}
       </div>
+
+      {/* Proyectos favoritos del usuario */}
+      {favorites.length > 0 && (
+        <div style={{ marginTop: 30 }}>
+          <h2 style={{ fontSize: 22 }}>
+            ❤️ Proyectos favoritos ({favorites.length})
+          </h2>
+          <div style={{ display: "grid", gap: 12 }}>
+            {favorites.map((p) => (
+              <Link key={p.id} href={`/project/${p.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                <div style={{ 
+                  padding: 15, 
+                  border: "1px solid #e0e0e0", 
+                  borderRadius: 12, 
+                  background: "white",
+                  transition: "transform 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.01)"
+                  e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,0.08)"
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)"
+                  e.currentTarget.style.boxShadow = "none"
+                }}>
+                  <h3 style={{ margin: 0, color: "#2b8a3e" }}>🎵 {p.name}</h3>
+                  <p style={{ margin: "5px 0 0", color: "#666", fontSize: 14 }}>
+                    {p.description || "Sin descripción"}
+                  </p>
+                  <div style={{ fontSize: 12, color: "#888", marginTop: 5 }}>
+                    📅 {new Date(p.created_at).toLocaleDateString()}
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

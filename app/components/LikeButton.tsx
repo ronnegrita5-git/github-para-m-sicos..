@@ -13,16 +13,29 @@ export default function LikeButton({ projectId }: LikeButtonProps) {
   const [likes, setLikes] = useState(0)
   const [hasLiked, setHasLiked] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [projectOwnerId, setProjectOwnerId] = useState<string | null>(null)
 
   useEffect(() => {
     loadLikes()
+    loadProjectOwner()
   }, [projectId])
+
+  async function loadProjectOwner() {
+    const { data } = await supabase
+      .from("projects")
+      .select("user_id")
+      .eq("id", projectId)
+      .single()
+    
+    if (data) {
+      setProjectOwnerId(data.user_id)
+    }
+  }
 
   async function loadLikes() {
     setLoading(true)
     
     try {
-      // Contar likes
       const { count, error: countError } = await supabase
         .from("likes")
         .select("*", { count: "exact", head: true })
@@ -34,7 +47,6 @@ export default function LikeButton({ projectId }: LikeButtonProps) {
         setLikes(count || 0)
       }
       
-      // Verificar si el usuario ya dio like
       if (user) {
         const { data, error } = await supabase
           .from("likes")
@@ -62,7 +74,6 @@ export default function LikeButton({ projectId }: LikeButtonProps) {
 
     try {
       if (hasLiked) {
-        // Quitar like
         const { error } = await supabase
           .from("likes")
           .delete()
@@ -73,7 +84,6 @@ export default function LikeButton({ projectId }: LikeButtonProps) {
         setLikes(likes - 1)
         setHasLiked(false)
       } else {
-        // Dar like
         const { error } = await supabase
           .from("likes")
           .insert([{ project_id: projectId, user_id: user.id }])
@@ -81,6 +91,17 @@ export default function LikeButton({ projectId }: LikeButtonProps) {
         if (error) throw error
         setLikes(likes + 1)
         setHasLiked(true)
+
+        if (projectOwnerId && projectOwnerId !== user.id) {
+          await supabase.from("notifications").insert([
+            {
+              user_id: projectOwnerId,
+              type: "like",
+              actor_id: user.id,
+              project_id: projectId,
+            },
+          ])
+        }
       }
     } catch (error: any) {
       console.error("Error al cambiar like:", error)

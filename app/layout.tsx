@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
-import { AuthProvider } from "./context/AuthContext"  // 👈 Ruta relativa (no uses @)
+import { AuthProvider } from "./context/AuthContext"
+import "./globals.css"
 
 export const metadata: Metadata = {
   title: "GitHub para Músicos",
@@ -12,11 +13,9 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es">
+    <html lang="es" data-scroll-behavior="smooth">
       <body>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   )
