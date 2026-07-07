@@ -66,7 +66,6 @@ export async function GET(request: NextRequest) {
     // Añadir pistas de audio
     const audioFolder = zip.folder('audio')
     
-    // 👈 Verificar que audioFolder no es null
     if (!audioFolder) {
       return NextResponse.json(
         { error: 'Error al crear carpeta de audio' },
@@ -91,7 +90,10 @@ export async function GET(request: NextRequest) {
     // Generar el ZIP
     const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' })
 
-    return new NextResponse(zipBuffer, {
+    // 👈 Convertir a Uint8Array para NextResponse
+    const uint8Array = new Uint8Array(zipBuffer)
+
+    return new NextResponse(uint8Array, {
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="${project.name || 'proyecto'}.zip"`,
