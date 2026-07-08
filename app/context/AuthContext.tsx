@@ -109,7 +109,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/dashboard")
   }
 
-  // 👈 USANDO LA URL DE SUPABASE
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
