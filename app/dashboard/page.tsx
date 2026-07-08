@@ -29,6 +29,7 @@ export default function DashboardPage() {
   async function loadProjects() {
     if (!user) return
     setLoading(true)
+    // 👈 CONSULTA CORRECTA: TODOS los proyectos del usuario (públicos Y privados)
     const { data } = await supabase
       .from("projects")
       .select("*")
@@ -286,6 +287,9 @@ export default function DashboardPage() {
                     </p>
                     <div style={{ color: "#10b981", fontSize: 12, marginTop: 12 }}>
                       📅 {new Date(p.created_at).toLocaleDateString()}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
+                      {p.is_public ? "🌍 Público" : "🔒 Privado"}
                     </div>
                   </Link>
                   
