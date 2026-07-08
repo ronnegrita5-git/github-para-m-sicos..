@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import { use, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { useAuth } from "@/app/context/AuthContext"
@@ -8,7 +8,7 @@ import Breadcrumbs from "../../components/Breadcrumbs"
 import FollowButton from "../../components/FollowButton"
 
 export default function UserProfilePage({ params }: any) {
-  const { id } = React.use(params)
+  const { id } = use(params) as { id: string }
   const { user } = useAuth()
   const [profile, setProfile] = useState<any>(null)
   const [projects, setProjects] = useState<any[]>([])
@@ -140,7 +140,6 @@ export default function UserProfilePage({ params }: any) {
           </div>
         </div>
 
-        {/* Botón de seguir */}
         <div style={{ marginTop: 15 }}>
           <FollowButton userId={id} />
         </div>
@@ -199,7 +198,6 @@ export default function UserProfilePage({ params }: any) {
         )}
       </div>
 
-      {/* Proyectos del usuario */}
       <div style={{ marginTop: 30 }}>
         <h2 style={{ fontSize: 22, color: "white" }}>
           🎸 Proyectos ({projects.length})
@@ -242,7 +240,6 @@ export default function UserProfilePage({ params }: any) {
         )}
       </div>
 
-      {/* Proyectos favoritos del usuario */}
       {favorites.length > 0 && (
         <div style={{ marginTop: 30 }}>
           <h2 style={{ fontSize: 22, color: "white" }}>
