@@ -7,11 +7,10 @@ import { useRouter } from "next/navigation"
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [fullName, setFullName] = useState("")
   const [isLogin, setIsLogin] = useState(true)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const { signInWithGoogle } = useAuth()
+  const { signIn, signUp } = useAuth()
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent) {
@@ -20,20 +19,16 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // Por ahora solo Google, pero podemos añadir email después
+      if (isLogin) {
+        await signIn(email, password)
+      } else {
+        await signUp(email, password)
+      }
       router.push("/dashboard")
     } catch (err: any) {
       setError(err.message || "Error al iniciar sesión")
     } finally {
       setLoading(false)
-    }
-  }
-
-  async function handleGoogleLogin() {
-    try {
-      await signInWithGoogle()
-    } catch (err: any) {
-      setError(err.message || "Error al iniciar sesión con Google")
     }
   }
 
@@ -55,7 +50,6 @@ export default function LoginPage() {
         border: "1px solid rgba(16, 185, 129, 0.15)",
         width: "100%",
         maxWidth: 420,
-        boxShadow: "0 20px 60px rgba(0,0,0,0.5)"
       }}>
         <div style={{ textAlign: "center", marginBottom: 30 }}>
           <span style={{ fontSize: 48 }}>🎵</span>
@@ -74,60 +68,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleGoogleLogin}
-          style={{
-            width: "100%",
-            padding: "12px 16px",
-            background: "white",
-            color: "#333",
-            border: "1px solid #ddd",
-            borderRadius: 10,
-            cursor: "pointer",
-            fontSize: 16,
-            fontWeight: "500",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-            marginBottom: 20,
-          }}
-        >
-          <img 
-            src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
-            alt="Google" 
-            style={{ width: 20, height: 20 }} 
-          />
-          Continuar con Google
-        </button>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <div style={{ flex: 1, borderBottom: "1px solid rgba(255,255,255,0.1)" }} />
-          <span style={{ color: "#6b7280", fontSize: 12 }}>o con email</span>
-          <div style={{ flex: 1, borderBottom: "1px solid rgba(255,255,255,0.1)" }} />
-        </div>
-
         <form onSubmit={handleSubmit}>
-          {!isLogin && (
-            <input
-              type="text"
-              placeholder="Nombre completo (opcional)"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              style={{
-                width: "100%",
-                padding: 12,
-                borderRadius: 10,
-                border: "1px solid rgba(16, 185, 129, 0.2)",
-                background: "rgba(255,255,255,0.05)",
-                color: "white",
-                fontSize: 16,
-                marginBottom: 12,
-                outline: "none",
-              }}
-            />
-          )}
-
           <input
             type="email"
             placeholder="Email"
