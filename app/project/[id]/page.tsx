@@ -12,7 +12,7 @@ import WebRecorder from "../../components/WebRecorder"
 import MultiUpload from "../../components/MultiUpload"
 
 export default function ProjectPage({ params }: any) {
-  const { id } = use(params) as { id: string }
+  const { id } = use(params)
   const { user } = useAuth()
   const router = useRouter()
 
@@ -370,7 +370,7 @@ export default function ProjectPage({ params }: any) {
   if (!user) return null
 
   return (
-    <div style={{ padding: 30, fontFamily: "'Inter', sans-serif", maxWidth: 1200, margin: "0 auto" }}>
+    <div style={{ padding: "30px 20px", fontFamily: "'Inter', sans-serif", maxWidth: 1200, margin: "0 auto" }}>
       <Breadcrumbs />
       
       {isOwner && (
@@ -607,6 +607,7 @@ export default function ProjectPage({ params }: any) {
                             width: "100%",
                           }}
                         />
+                        {/* 👈 AQUÍ SE AÑADE EL GRABADOR WEB */}
                         <WebRecorder 
                           projectId={id} 
                           trackId={t.id} 

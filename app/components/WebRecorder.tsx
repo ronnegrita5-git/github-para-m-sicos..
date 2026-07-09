@@ -23,6 +23,7 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
   const audioChunksRef = useRef<Blob[]>([])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Solicitar acceso al micrófono y empezar a grabar
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -38,6 +39,7 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mpeg' })
         const url = URL.createObjectURL(audioBlob)
         setAudioURL(url)
+        // Detener todas las pistas del stream
         stream.getTracks().forEach(track => track.stop())
       }
       
@@ -46,6 +48,7 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
       setIsPaused(false)
       setError(null)
       
+      // Timer de grabación
       let seconds = 0
       timerRef.current = setInterval(() => {
         seconds++
@@ -58,6 +61,7 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
     }
   }
 
+  // Pausar grabación
   function pauseRecording() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.pause()
@@ -69,6 +73,7 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
     }
   }
 
+  // Reanudar grabación
   function resumeRecording() {
     if (mediaRecorderRef.current && isPaused) {
       mediaRecorderRef.current.resume()
@@ -79,6 +84,7 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
     }
   }
 
+  // Detener grabación
   function stopRecording() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
@@ -91,6 +97,7 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
     }
   }
 
+  // Cancelar grabación
   function cancelRecording() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
@@ -108,6 +115,7 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
     setRecordingTime(0)
   }
 
+  // Subir grabación a Supabase
   async function uploadRecording() {
     if (!audioURL || !user) return
     
@@ -115,11 +123,13 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
     setError(null)
     
     try {
+      // Obtener el blob desde la URL
       const response = await fetch(audioURL)
       const blob = await response.blob()
       
       const fileName = `${projectId}/${Date.now()}-web-recording.mp3`
       
+      // Subir a Storage
       const { error: uploadError } = await supabase.storage
         .from("audio")
         .upload(fileName, blob, {
@@ -129,12 +139,14 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
       
       if (uploadError) throw uploadError
       
+      // Obtener URL pública
       const { data: urlData } = supabase.storage
         .from("audio")
         .getPublicUrl(fileName)
       
       const audioUrl = urlData.publicUrl
       
+      // Actualizar la pista
       const { error: updateError } = await supabase
         .from("tracks")
         .update({ 
@@ -145,6 +157,7 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
       
       if (updateError) throw updateError
       
+      // Limpiar
       URL.revokeObjectURL(audioURL)
       setAudioURL(null)
       setRecordingTime(0)
@@ -161,6 +174,7 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
     }
   }
 
+  // Formatear tiempo (mm:ss)
   function formatTime(seconds: number) {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
@@ -169,6 +183,7 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
 
   return (
     <div style={{ marginTop: 10 }}>
+      {/* Botón para empezar a grabar */}
       {!isRecording && !audioURL && (
         <button
           onClick={startRecording}
@@ -180,17 +195,42 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
             borderRadius: 8,
             cursor: "pointer",
             fontSize: 14,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            transition: "all 0.2s ease",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "#c82333"
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "#dc3545"
           }}
         >
           🎙️ Grabar desde web
         </button>
       )}
 
+      {/* Controles de grabación */}
       {isRecording && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <span style={{ color: "#dc3545", fontWeight: "bold" }}>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          flexWrap: "wrap",
+          padding: "8px 12px",
+          background: "rgba(255,255,255,0.05)",
+          borderRadius: 8,
+          border: "1px solid rgba(255,255,255,0.1)",
+        }}>
+          <span style={{
+            color: "#dc3545",
+            fontWeight: "bold",
+            fontSize: 16,
+          }}>
             🔴 {formatTime(recordingTime)}
           </span>
+          
           {isPaused ? (
             <button
               onClick={resumeRecording}
@@ -222,6 +262,7 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
               ⏸️ Pausar
             </button>
           )}
+          
           <button
             onClick={stopRecording}
             style={{
@@ -239,35 +280,55 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
         </div>
       )}
 
+      {/* Vista previa y subida */}
       {audioURL && (
-        <div style={{ marginTop: 10 }}>
+        <div style={{
+          marginTop: 10,
+          padding: "12px 16px",
+          background: "rgba(255,255,255,0.05)",
+          borderRadius: 8,
+          border: "1px solid rgba(16, 185, 129, 0.2)",
+        }}>
           <audio controls src={audioURL} style={{ width: "100%", maxWidth: 300 }} />
-          <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+          <div style={{
+            display: "flex",
+            gap: 10,
+            marginTop: 10,
+            flexWrap: "wrap",
+          }}>
             <button
               onClick={uploadRecording}
               disabled={isUploading}
               style={{
                 padding: "8px 16px",
-                background: "#28a745",
+                background: isUploading ? "#6c757d" : "linear-gradient(135deg, #10b981, #059669)",
                 color: "white",
                 border: "none",
                 borderRadius: 8,
                 cursor: isUploading ? "default" : "pointer",
                 fontSize: 14,
+                transition: "all 0.2s ease",
               }}
             >
-              {isUploading ? "Subiendo..." : "📤 Subir grabación"}
+              {isUploading ? "⏳ Subiendo..." : "📤 Subir grabación"}
             </button>
             <button
               onClick={cancelRecording}
               style={{
                 padding: "8px 16px",
-                background: "#6c757d",
-                color: "white",
-                border: "none",
+                background: "rgba(239, 68, 68, 0.15)",
+                color: "#ef4444",
+                border: "1px solid rgba(239, 68, 68, 0.2)",
                 borderRadius: 8,
                 cursor: "pointer",
                 fontSize: 14,
+                transition: "all 0.2s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(239, 68, 68, 0.25)"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(239, 68, 68, 0.15)"
               }}
             >
               ❌ Cancelar
@@ -276,8 +337,17 @@ export default function WebRecorder({ projectId, trackId, onUploadComplete }: We
         </div>
       )}
 
+      {/* Mensajes de error */}
       {error && (
-        <p style={{ color: "#dc3545", fontSize: 14, marginTop: 10 }}>
+        <p style={{
+          color: "#ef4444",
+          fontSize: 14,
+          marginTop: 10,
+          padding: "8px 12px",
+          background: "rgba(239, 68, 68, 0.1)",
+          borderRadius: 8,
+          border: "1px solid rgba(239, 68, 68, 0.2)",
+        }}>
           ❌ {error}
         </p>
       )}

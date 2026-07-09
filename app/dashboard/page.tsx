@@ -29,7 +29,6 @@ export default function DashboardPage() {
   async function loadProjects() {
     if (!user) return
     setLoading(true)
-    // 👈 CONSULTA CORRECTA: TODOS los proyectos del usuario (públicos Y privados)
     const { data } = await supabase
       .from("projects")
       .select("*")
@@ -129,170 +128,221 @@ export default function DashboardPage() {
   if (!user) return null
 
   return (
-    <div style={{ 
-      minHeight: "100vh", 
+    <div style={{
+      minHeight: "100vh",
       background: "linear-gradient(135deg, #0a0a0a 0%, #0f1a14 50%, #0a0a0a 100%)",
       fontFamily: "'Inter', sans-serif",
-      padding: 20
+      padding: "20px",
     }}>
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-        <Navbar />
-        <Breadcrumbs />
-        
-        <div style={{ padding: "30px 0" }}>
-          <div style={{ marginBottom: 30 }}>
-            <h2 style={{ color: "white", fontSize: 28, margin: 0 }}>
-              🎸 Tus proyectos
-            </h2>
-            <p style={{ color: "#10b981", fontSize: 16, marginTop: 5 }}>
-              Crea, colabora y comparte tu música
+        <div style={{
+          padding: "30px 0",
+          borderBottom: "1px solid rgba(16, 185, 129, 0.1)",
+          marginBottom: 30,
+        }}>
+          <h1 style={{
+            color: "white",
+            fontSize: 28,
+            margin: 0,
+            background: "linear-gradient(135deg, #10b981, #34d399)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+          }}>
+            🎸 Tus proyectos
+          </h1>
+          <p style={{ color: "#10b981", fontSize: 16, marginTop: 5 }}>
+            Crea, colabora y comparte tu música
+          </p>
+        </div>
+
+        <button
+          onClick={() => setShowCreate(!showCreate)}
+          style={{
+            padding: "12px 28px",
+            background: showCreate ? "#065f46" : "linear-gradient(135deg, #10b981, #059669)",
+            color: "white",
+            border: "none",
+            borderRadius: 10,
+            cursor: "pointer",
+            fontSize: 16,
+            fontWeight: "bold",
+            marginBottom: 30,
+            transition: "all 0.3s ease",
+          }}
+        >
+          {showCreate ? "✕ Cancelar" : "+ Nuevo Proyecto"}
+        </button>
+
+        {showCreate && (
+          <div style={{
+            background: "rgba(255,255,255,0.03)",
+            backdropFilter: "blur(10px)",
+            padding: 25,
+            borderRadius: 16,
+            border: "1px solid rgba(16, 185, 129, 0.15)",
+            marginBottom: 30,
+          }}>
+            <h3 style={{ color: "white", margin: "0 0 15px 0" }}>✨ Crear nuevo proyecto</h3>
+            <input
+              placeholder="Nombre del proyecto *"
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              style={{
+                width: "100%",
+                padding: 12,
+                borderRadius: 10,
+                border: "1px solid rgba(16, 185, 129, 0.2)",
+                background: "rgba(255,255,255,0.05)",
+                color: "white",
+                fontSize: 16,
+                marginBottom: 12,
+              }}
+            />
+            <input
+              placeholder="Descripción (opcional)"
+              value={newProjectDesc}
+              onChange={(e) => setNewProjectDesc(e.target.value)}
+              style={{
+                width: "100%",
+                padding: 12,
+                borderRadius: 10,
+                border: "1px solid rgba(16, 185, 129, 0.2)",
+                background: "rgba(255,255,255,0.05)",
+                color: "white",
+                fontSize: 16,
+                marginBottom: 12,
+              }}
+            />
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={createProject}
+                style={{
+                  padding: "10px 24px",
+                  background: "linear-gradient(135deg, #10b981, #059669)",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontSize: 16,
+                }}
+              >
+                🚀 Crear
+              </button>
+              <button
+                onClick={() => setShowCreate(false)}
+                style={{
+                  padding: "10px 24px",
+                  background: "rgba(255,255,255,0.1)",
+                  color: "white",
+                  border: "1px solid rgba(255,255,255,0.2)",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  fontSize: 16,
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {loading ? (
+          <div style={{ color: "#10b981", textAlign: "center", padding: 40 }}>
+            🎧 Cargando proyectos...
+          </div>
+        ) : projects.length === 0 ? (
+          <div style={{
+            background: "rgba(255,255,255,0.03)",
+            borderRadius: 16,
+            padding: 60,
+            textAlign: "center",
+            border: "1px dashed rgba(16, 185, 129, 0.2)",
+          }}>
+            <p style={{ color: "#10b981", fontSize: 18, margin: 0 }}>
+              🎹 No tienes proyectos aún. ¡Crea tu primer proyecto musical!
             </p>
           </div>
-
-          <button
-            onClick={() => setShowCreate(!showCreate)}
-            style={{
-              padding: "12px 28px",
-              background: showCreate ? "#065f46" : "linear-gradient(135deg, #10b981, #059669)",
-              color: "white",
-              border: "none",
-              borderRadius: 10,
-              cursor: "pointer",
-              fontSize: 16,
-              fontWeight: "bold",
-              marginBottom: 30,
-              transition: "all 0.3s ease",
-            }}
-          >
-            {showCreate ? "✕ Cancelar" : "+ Nuevo Proyecto"}
-          </button>
-
-          {showCreate && (
-            <div style={{
-              background: "rgba(255,255,255,0.03)",
-              backdropFilter: "blur(10px)",
-              padding: 25,
-              borderRadius: 16,
-              border: "1px solid rgba(16, 185, 129, 0.15)",
-              marginBottom: 30,
-            }}>
-              <h3 style={{ color: "white", margin: "0 0 15px 0" }}>✨ Crear nuevo proyecto</h3>
-              <input
-                placeholder="Nombre del proyecto *"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
+        ) : (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+            gap: 24,
+          }}>
+            {projects.map((p) => (
+              <div
+                key={p.id}
                 style={{
-                  width: "100%",
-                  padding: 12,
-                  borderRadius: 10,
-                  border: "1px solid rgba(16, 185, 129, 0.2)",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "white",
-                  fontSize: 16,
-                  marginBottom: 12,
+                  background: "rgba(255,255,255,0.03)",
+                  backdropFilter: "blur(10px)",
+                  borderRadius: 16,
+                  padding: 24,
+                  border: "1px solid rgba(16, 185, 129, 0.1)",
+                  transition: "all 0.3s ease",
+                  position: "relative",
                 }}
-              />
-              <input
-                placeholder="Descripción (opcional)"
-                value={newProjectDesc}
-                onChange={(e) => setNewProjectDesc(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: 12,
-                  borderRadius: 10,
-                  border: "1px solid rgba(16, 185, 129, 0.2)",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "white",
-                  fontSize: 16,
-                  marginBottom: 12,
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-6px)"
+                  e.currentTarget.style.boxShadow = "0 12px 40px rgba(16, 185, 129, 0.08)"
+                  e.currentTarget.style.borderColor = "rgba(16, 185, 129, 0.3)"
                 }}
-              />
-              <div style={{ display: "flex", gap: 10 }}>
-                <button
-                  onClick={createProject}
-                  style={{
-                    padding: "10px 24px",
-                    background: "linear-gradient(135deg, #10b981, #059669)",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                    fontSize: 16,
-                  }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)"
+                  e.currentTarget.style.boxShadow = "none"
+                  e.currentTarget.style.borderColor = "rgba(16, 185, 129, 0.1)"
+                }}
+              >
+                <Link
+                  href={`/project/${p.id}`}
+                  style={{ textDecoration: "none", color: "inherit", display: "block" }}
                 >
-                  🚀 Crear
-                </button>
-                <button
-                  onClick={() => setShowCreate(false)}
-                  style={{
-                    padding: "10px 24px",
-                    background: "rgba(255,255,255,0.1)",
-                    color: "white",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                    fontSize: 16,
-                  }}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          )}
-
-          {loading ? (
-            <div style={{ color: "#10b981", textAlign: "center", padding: 40 }}>
-              🎧 Cargando proyectos...
-            </div>
-          ) : projects.length === 0 ? (
-            <div style={{
-              background: "rgba(255,255,255,0.03)",
-              borderRadius: 16,
-              padding: 60,
-              textAlign: "center",
-              border: "1px dashed rgba(16, 185, 129, 0.2)",
-            }}>
-              <p style={{ color: "#10b981", fontSize: 18, margin: 0 }}>
-                🎹 No tienes proyectos aún. ¡Crea tu primer proyecto musical!
-              </p>
-            </div>
-          ) : (
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: 20,
-            }}>
-              {projects.map((p) => (
-                <div
-                  key={p.id}
-                  style={{
-                    background: "rgba(255,255,255,0.03)",
-                    backdropFilter: "blur(10px)",
-                    borderRadius: 16,
-                    padding: 20,
-                    border: "1px solid rgba(16, 185, 129, 0.1)",
-                    transition: "transform 0.2s, box-shadow 0.3s",
-                    position: "relative",
-                  }}
-                >
-                  <Link
-                    href={`/project/${p.id}`}
-                    style={{ textDecoration: "none", color: "inherit", display: "block" }}
-                  >
-                    <h3 style={{ color: "white", margin: 0, fontSize: 18 }}>
-                      🎸 {p.name}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                    <span style={{ fontSize: 24 }}>🎵</span>
+                    <h3 style={{
+                      color: "white",
+                      margin: 0,
+                      fontSize: 18,
+                      fontWeight: 600,
+                    }}>
+                      {p.name}
                     </h3>
-                    <p style={{ color: "#9ca3af", fontSize: 14, margin: "8px 0 0 0" }}>
-                      {p.description || "Sin descripción"}
-                    </p>
-                    <div style={{ color: "#10b981", fontSize: 12, marginTop: 12 }}>
+                  </div>
+                  <p style={{
+                    color: "#9ca3af",
+                    fontSize: 14,
+                    margin: "8px 0 0 0",
+                    lineHeight: 1.5,
+                  }}>
+                    {p.description || "Sin descripción"}
+                  </p>
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginTop: 16,
+                  }}>
+                    <span style={{
+                      fontSize: 12,
+                      color: "#6b7280",
+                    }}>
                       📅 {new Date(p.created_at).toLocaleDateString()}
-                    </div>
-                    <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>
+                    </span>
+                    <span style={{
+                      fontSize: 12,
+                      color: p.is_public ? "#10b981" : "#6b7280",
+                    }}>
                       {p.is_public ? "🌍 Público" : "🔒 Privado"}
-                    </div>
-                  </Link>
-                  
+                    </span>
+                  </div>
+                </Link>
+
+                {/* Botones de acción */}
+                <div style={{
+                  display: "flex",
+                  gap: 8,
+                  marginTop: 16,
+                  paddingTop: 16,
+                  borderTop: "1px solid rgba(255,255,255,0.05)",
+                }}>
                   <button
                     onClick={(e) => {
                       e.preventDefault()
@@ -300,22 +350,24 @@ export default function DashboardPage() {
                       deleteProject(p.id, p.name)
                     }}
                     style={{
-                      position: "absolute",
-                      top: 12,
-                      right: 12,
+                      padding: "6px 12px",
                       background: "rgba(239, 68, 68, 0.15)",
-                      border: "none",
-                      borderRadius: 8,
-                      padding: "6px 10px",
-                      cursor: "pointer",
-                      fontSize: 16,
                       color: "#ef4444",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      fontSize: 13,
+                      transition: "all 0.2s ease",
                     }}
-                    title="Eliminar proyecto"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(239, 68, 68, 0.25)"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "rgba(239, 68, 68, 0.15)"
+                    }}
                   >
                     🗑️
                   </button>
-
                   <button
                     onClick={(e) => {
                       e.preventDefault()
@@ -323,26 +375,29 @@ export default function DashboardPage() {
                       downloadProject(p.id, p.name)
                     }}
                     style={{
-                      position: "absolute",
-                      bottom: 12,
-                      right: 50,
+                      padding: "6px 12px",
                       background: "rgba(16, 185, 129, 0.15)",
-                      border: "none",
-                      borderRadius: 8,
-                      padding: "4px 10px",
-                      cursor: "pointer",
-                      fontSize: 14,
                       color: "#10b981",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      fontSize: 13,
+                      transition: "all 0.2s ease",
                     }}
-                    title="Descargar proyecto"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(16, 185, 129, 0.25)"
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "rgba(16, 185, 129, 0.15)"
+                    }}
                   >
                     📥
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
