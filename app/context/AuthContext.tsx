@@ -109,10 +109,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/dashboard")
   }
 
-  // 👈 REDIRECCIÓN DIRECTA A SUPABASE
+  // 👈 FORZANDO LA NUEVA URL DE VERCEL
   const signInWithGoogle = async () => {
-    console.log("🔵 Redirigiendo a Google a través de Supabase...")
-    window.location.href = 'https://faycvxctpilpnmeramcy.supabase.co/auth/v1/authorize?provider=google'
+    const baseUrl = 'https://github-para-musicos-v1yk.vercel.app'
+    const clientId = '49946247144-enqve4b4h0ll5l98a6a332hseci4dmp3.apps.googleusercontent.com'
+    const redirectUri = `${baseUrl}/auth/callback`
+    
+    console.log("🔵 Redirigiendo a Google...")
+    console.log("🔵 Redirect URI:", redirectUri)
+
+    window.location.href =
+      'https://accounts.google.com/o/oauth2/v2/auth?' +
+      `client_id=${clientId}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      'response_type=code&' +
+      'scope=email%20profile&' +
+      'access_type=offline'
   }
 
   const signOut = async () => {
