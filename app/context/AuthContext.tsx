@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/dashboard")
   }
 
-  // 👈 REDIRECCIÓN MANUAL CON SUPABASE
+  // 👈 UNIFICADO: TODOS USAN LA MISMA URL
   const signInWithGoogle = async () => {
     console.log("🔵 Redirigiendo a Google con Supabase...")
     const { error } = await supabase.auth.signInWithOAuth({
