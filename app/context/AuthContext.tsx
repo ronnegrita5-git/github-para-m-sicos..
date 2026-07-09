@@ -109,18 +109,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/dashboard")
   }
 
-  // 👈 CLIENT ID CORRECTO (el que funciona en Google Cloud Console)
+  // 👈 REDIRECCIÓN DIRECTA A SUPABASE
   const signInWithGoogle = async () => {
-    const clientId = '49946247144-9jildu9vo07drmkjmu2uklnvhae7vhhf.apps.googleusercontent.com'
-    console.log("🔵 Redirigiendo a Google con Client ID:", clientId)
-
-    window.location.href =
-      'https://accounts.google.com/o/oauth2/v2/auth?' +
-      `client_id=${clientId}&` +
-      'redirect_uri=https://github-para-musicos.vercel.app/auth/callback&' +
-      'response_type=code&' +
-      'scope=email%20profile&' +
-      'access_type=offline'
+    console.log("🔵 Redirigiendo a Google con Supabase...")
+    window.location.href = 'https://faycvxctpilpnmeramcy.supabase.co/auth/v1/authorize?provider=google'
   }
 
   const signOut = async () => {
