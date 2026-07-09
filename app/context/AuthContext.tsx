@@ -111,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // 👈 REDIRECCIÓN DIRECTA A SUPABASE
   const signInWithGoogle = async () => {
-    console.log("🔵 Redirigiendo a Google con Supabase...")
+    console.log("🔵 Redirigiendo a Google a través de Supabase...")
     window.location.href = 'https://faycvxctpilpnmeramcy.supabase.co/auth/v1/authorize?provider=google'
   }
 
