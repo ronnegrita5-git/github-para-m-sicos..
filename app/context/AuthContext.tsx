@@ -109,11 +109,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/dashboard")
   }
 
+  // 👈 USANDO LA URL DE SUPABASE
   const signInWithGoogle = async () => {
+    console.log("🔵 Iniciando login con Google...")
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: 'https://zsafibnyebwcfhlpmgub.supabase.co/auth/v1/callback'
+        redirectTo: 'https://faycvxctpilpnmeramcy.supabase.co/auth/v1/callback'
       }
     })
     if (error) {
