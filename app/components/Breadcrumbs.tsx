@@ -37,12 +37,12 @@ export default function Breadcrumbs() {
   
   return (
     <nav style={{
-      padding: "16px 0 12px 70px",  // 👈 Aumentado el padding-left a 70px (antes era 0)
+      padding: "16px 0 12px 70px",  // 👈 Desplazado 70px a la derecha
       fontSize: 14,
       color: "#6b7280",
       maxWidth: 1200,
       margin: "0 auto",
-      marginTop: "12px",            // 👈 Pequeño margen superior para separar del borde
+      marginTop: "12px",
     }}>
       <Link href="/" style={{ color: "#10b981", textDecoration: "none" }}>
         Inicio
