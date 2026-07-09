@@ -69,20 +69,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        loadProfile(session.user.id)
+  // 👈 FUNCIÓN PARA ACTUALIZAR LA SESIÓN
+  async function refreshSession() {
+    const { data: { session } } = await supabase.auth.getSession()
+    console.log("🔵 Sesión actualizada:", session ? "Sí" : "No")
+    if (session) {
+      setUser(session.user)
+      if (session.user) {
+        await loadProfile(session.user.id)
       }
-      setLoading(false)
-    })
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    refreshSession()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        await loadProfile(session.user.id)
+      console.log("🔵 Cambio de estado:", _event)
+      console.log("🔵 Usuario:", session?.user?.email || "No autenticado")
+      
+      if (session) {
+        setUser(session.user)
+        if (session.user) {
+          await loadProfile(session.user.id)
+        }
+        // 👈 Si está autenticado, redirigir al dashboard
+        if (_event === 'SIGNED_IN') {
+          router.push('/dashboard')
+        }
       } else {
+        setUser(null)
         setProfile(null)
       }
       setLoading(false)
@@ -109,7 +126,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/dashboard")
   }
 
-  // 👈 FORZANDO LA NUEVA URL DE VERCEL
   const signInWithGoogle = async () => {
     const baseUrl = 'https://github-para-musicos-v1yk.vercel.app'
     const clientId = '49946247144-enqve4b4h0ll5l98a6a332hseci4dmp3.apps.googleusercontent.com'
