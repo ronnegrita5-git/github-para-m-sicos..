@@ -109,9 +109,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/dashboard")
   }
 
-  // 👈 REEMPLAZA CON EL NUEVO CLIENT ID
+  // 👈 CLIENT ID CORRECTO (el que funciona en Google Cloud Console)
   const signInWithGoogle = async () => {
-    const clientId = 'NUEVO_CLIENT_ID_AQUI'  // 👈 PON EL QUE ACABAS DE CREAR
+    const clientId = '49946247144-9jildu9vo07drmkjmu2uklnvhae7vhhf.apps.googleusercontent.com'
     console.log("🔵 Redirigiendo a Google con Client ID:", clientId)
 
     window.location.href =
