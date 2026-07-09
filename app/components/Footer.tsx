@@ -10,7 +10,6 @@ export default function Footer() {
   return (
     <footer style={{
       background: "rgba(10,10,10,0.8)",
-      backdropFilter: "blur(10px)",
       borderTop: "1px solid rgba(16, 185, 129, 0.1)",
       padding: "40px 20px",
       marginTop: "auto",
@@ -22,7 +21,6 @@ export default function Footer() {
         gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
         gap: 32,
       }}>
-        {/* Logo y descripción */}
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
             <span style={{ fontSize: 24 }}>🎵</span>
@@ -38,67 +36,24 @@ export default function Footer() {
             </h3>
           </div>
           <p style={{ color: "#6b7280", fontSize: 14, lineHeight: 1.6 }}>
-            La plataforma colaborativa para músicos. Crea, comparte y colabora en proyectos musicales.
+            La plataforma colaborativa para músicos.
           </p>
         </div>
 
-        {/* Navegación rápida */}
         <div>
-          <h4 style={{ color: "white", fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-            Navegación
-          </h4>
+          <h4 style={{ color: "white", fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Navegación</h4>
           <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
             <li style={{ marginBottom: 8 }}>
-              <Link href="/" style={{ color: "#9ca3af", textDecoration: "none", fontSize: 14 }}>
-                🏠 Inicio
-              </Link>
+              <Link href="/" style={{ color: "#9ca3af", textDecoration: "none", fontSize: 14 }}>🏠 Inicio</Link>
             </li>
             <li style={{ marginBottom: 8 }}>
-              <Link href="/explore" style={{ color: "#9ca3af", textDecoration: "none", fontSize: 14 }}>
-                🌍 Explorar
-              </Link>
-            </li>
-            {user && (
-              <li style={{ marginBottom: 8 }}>
-                <Link href="/dashboard" style={{ color: "#9ca3af", textDecoration: "none", fontSize: 14 }}>
-                  🎸 Dashboard
-                </Link>
-              </li>
-            )}
-          </ul>
-        </div>
-
-        {/* Enlaces útiles */}
-        <div>
-          <h4 style={{ color: "white", fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-            Enlaces
-          </h4>
-          <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            <li style={{ marginBottom: 8 }}>
-              <Link href="/explore" style={{ color: "#9ca3af", textDecoration: "none", fontSize: 14 }}>
-                🔍 Proyectos
-              </Link>
-            </li>
-            {user && (
-              <li style={{ marginBottom: 8 }}>
-                <Link href="/favorites" style={{ color: "#9ca3af", textDecoration: "none", fontSize: 14 }}>
-                  ❤️ Favoritos
-                </Link>
-              </li>
-            )}
-            <li style={{ marginBottom: 8 }}>
-              <Link href="/login" style={{ color: "#9ca3af", textDecoration: "none", fontSize: 14 }}>
-                🔑 {user ? "Mi cuenta" : "Iniciar sesión"}
-              </Link>
+              <Link href="/explore" style={{ color: "#9ca3af", textDecoration: "none", fontSize: 14 }}>🌍 Explorar</Link>
             </li>
           </ul>
         </div>
 
-        {/* Estado del usuario */}
         <div>
-          <h4 style={{ color: "white", fontSize: 14, fontWeight: 600, marginBottom: 12 }}>
-            Estado
-          </h4>
+          <h4 style={{ color: "white", fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Estado</h4>
           <div style={{
             padding: "10px 16px",
             background: "rgba(255,255,255,0.03)",
@@ -106,17 +61,12 @@ export default function Footer() {
             border: "1px solid rgba(255,255,255,0.05)",
           }}>
             <p style={{ color: "#9ca3af", fontSize: 14, margin: 0 }}>
-              {user ? (
-                <>✅ Conectado como <span style={{ color: "#10b981" }}>{user.email}</span></>
-              ) : (
-                <>🔴 No conectado</>
-              )}
+              {user ? <>✅ Conectado como <span style={{ color: "#10b981" }}>{user.email}</span></> : <>🔴 No conectado</>}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Copyright */}
       <div style={{
         maxWidth: 1200,
         margin: "32px auto 0",
@@ -126,9 +76,7 @@ export default function Footer() {
         color: "#6b7280",
         fontSize: 13,
       }}>
-        <p style={{ margin: 0 }}>
-          © {currentYear} GitHub para Músicos · Hecho con ❤️ y 🎵
-        </p>
+        <p style={{ margin: 0 }}>© {currentYear} GitHub para Músicos · Hecho con ❤️ y 🎵</p>
       </div>
     </footer>
   )

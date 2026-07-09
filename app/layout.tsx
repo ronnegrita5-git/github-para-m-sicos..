@@ -18,13 +18,13 @@ export default function RootLayout({
     <html lang="es">
       <body>
         <AuthProvider>
-          <Sidebar />
           <div style={{
             display: "flex",
             flexDirection: "column",
             minHeight: "100vh",
           }}>
-            <main style={{ flex: 1, paddingLeft: 0 }}>
+            <Sidebar />
+            <main style={{ flex: 1 }}>
               {children}
             </main>
             <Footer />
