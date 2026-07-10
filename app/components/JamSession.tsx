@@ -32,7 +32,6 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
   const { user } = useAuth()
   const [activeNotes, setActiveNotes] = useState<Set<string>>(new Set())
   const [isConnected, setIsConnected] = useState(false)
-  const [participants] = useState(0)
   const [isMicActive, setIsMicActive] = useState(false)
   const [micVolume, setMicVolume] = useState(50)
   
@@ -40,7 +39,6 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
   const oscillatorsRef = useRef<Map<string, OscillatorNode>>(new Map())
   const gainsRef = useRef<Map<string, GainNode>>(new Map())
   
-  // Referencias para el micrófono
   const mediaStreamRef = useRef<MediaStream | null>(null)
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null)
   const gainNodeRef = useRef<GainNode | null>(null)
@@ -94,7 +92,6 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
     }
   }, [user, sessionId])
 
-  // Reproducir nota
   const playNote = (note: string, velocity: number = 100) => {
     if (!audioContextRef.current) return
     
@@ -131,7 +128,6 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
     }
   }
 
-  // Detener nota
   const stopNote = (note: string) => {
     const osc = oscillatorsRef.current.get(note)
     const gain = gainsRef.current.get(note)
@@ -148,7 +144,6 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
     }
   }
 
-  // Enviar nota
   const sendNote = (note: string, action: 'note-on' | 'note-off', velocity: number = 100) => {
     if (!user) return
     
@@ -166,7 +161,6 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
     })
   }
 
-  // 🎤 ACTIVAR MICRÓFONO
   const toggleMic = async () => {
     if (isMicActive) {
       if (mediaStreamRef.current) {
@@ -212,8 +206,6 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
       
       setIsMicActive(true)
       
-      console.log('🎤 Micrófono activado')
-      
     } catch (error) {
       console.error('Error al acceder al micrófono:', error)
       alert('No se pudo acceder al micrófono. Permite el acceso en tu navegador.')
@@ -247,22 +239,6 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
     sendNote(note, 'note-off')
   }
 
-  if (!user) {
-    return (
-      <div style={{
-        padding: 30,
-        textAlign: 'center',
-        background: 'rgba(255,255,255,0.03)',
-        borderRadius: 16,
-        border: '1px solid rgba(16, 185, 129, 0.1)',
-      }}>
-        <p style={{ color: '#9ca3af' }}>
-          👋 <Link href="/login" style={{ color: '#10b981' }}>Inicia sesión</Link> para unirte a la jam session
-        </p>
-      </div>
-    )
-  }
-
   return (
     <div style={{
       padding: 20,
@@ -281,11 +257,6 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
         <h3 style={{ color: 'white', margin: 0 }}>
           🎹 Jam Session {isConnected ? '🟢 Conectado' : '🔴 Desconectado'}
         </h3>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <span style={{ color: '#6b7280', fontSize: 14 }}>
-            {participants} participantes
-          </span>
-        </div>
       </div>
 
       {/* 🎤 CONTROLES DEL MICRÓFONO */}
@@ -310,7 +281,6 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
             cursor: 'pointer',
             fontSize: 14,
             fontWeight: 'bold',
-            transition: 'all 0.2s ease',
           }}
         >
           {isMicActive ? '🔴 Desactivar micrófono' : '🎤 Activar micrófono'}
@@ -348,78 +318,84 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
       </div>
 
       {/* 🎹 TECLADO VIRTUAL */}
-      <div style={{
-        display: 'flex',
-        gap: 8,
-        justifyContent: 'center',
-        padding: 20,
-        background: 'rgba(0,0,0,0.3)',
-        borderRadius: 12,
-        flexWrap: 'wrap',
-      }}>
-        {NOTES.map((note) => {
-          const isActive = activeNotes.has(note)
-          const isBlack = note.includes('#')
-          
-          return (
-            <button
-              key={note}
-              onMouseDown={() => handleKeyDown(note)}
-              onMouseUp={() => handleKeyUp(note)}
-              onMouseLeave={() => {
-                if (isActive) handleKeyUp(note)
-              }}
-              style={{
-                width: isBlack ? 40 : 50,
-                height: isBlack ? 120 : 160,
-                background: isActive 
-                  ? '#10b981' 
-                  : isBlack 
-                    ? '#1a1a1a' 
-                    : '#2a2a2a',
-                border: isBlack 
-                  ? '1px solid #333' 
-                  : '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 8,
-                cursor: 'pointer',
-                color: 'white',
-                fontSize: 12,
-                fontWeight: 'bold',
-                transition: 'all 0.1s ease',
-                boxShadow: isActive ? '0 0 20px rgba(16, 185, 129, 0.3)' : 'none',
-                transform: isActive ? 'scale(0.95)' : 'scale(1)',
-                position: 'relative',
-                zIndex: isBlack ? 10 : 1,
-                marginLeft: isBlack ? -15 : 0,
-                marginRight: isBlack ? -15 : 0,
-                display: 'flex',
-                alignItems: 'flex-end',
-                justifyContent: 'center',
-                paddingBottom: 10,
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.background = isBlack ? '#2a2a2a' : '#3a3a3a'
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.background = isBlack ? '#1a1a1a' : '#2a2a2a'
-                }
-              }}
-            >
-              <span style={{ 
-                fontSize: 10, 
-                color: isBlack ? '#888' : '#666',
-                position: 'absolute',
-                bottom: 8,
-              }}>
-                {note}
-              </span>
-            </button>
-          )
-        })}
-      </div>
+      {user ? (
+        <div style={{
+          display: 'flex',
+          gap: 8,
+          justifyContent: 'center',
+          padding: 20,
+          background: 'rgba(0,0,0,0.3)',
+          borderRadius: 12,
+          flexWrap: 'wrap',
+        }}>
+          {NOTES.map((note) => {
+            const isActive = activeNotes.has(note)
+            const isBlack = note.includes('#')
+            
+            return (
+              <button
+                key={note}
+                onMouseDown={() => handleKeyDown(note)}
+                onMouseUp={() => handleKeyUp(note)}
+                onMouseLeave={() => {
+                  if (isActive) handleKeyUp(note)
+                }}
+                style={{
+                  width: isBlack ? 40 : 50,
+                  height: isBlack ? 120 : 160,
+                  background: isActive 
+                    ? '#10b981' 
+                    : isBlack 
+                      ? '#1a1a1a' 
+                      : '#2a2a2a',
+                  border: isBlack 
+                    ? '1px solid #333' 
+                    : '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  color: 'white',
+                  fontSize: 12,
+                  fontWeight: 'bold',
+                  transition: 'all 0.1s ease',
+                  boxShadow: isActive ? '0 0 20px rgba(16, 185, 129, 0.3)' : 'none',
+                  transform: isActive ? 'scale(0.95)' : 'scale(1)',
+                  position: 'relative',
+                  zIndex: isBlack ? 10 : 1,
+                  marginLeft: isBlack ? -15 : 0,
+                  marginRight: isBlack ? -15 : 0,
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'center',
+                  paddingBottom: 10,
+                }}
+              >
+                <span style={{ 
+                  fontSize: 10, 
+                  color: isBlack ? '#888' : '#666',
+                  position: 'absolute',
+                  bottom: 8,
+                }}>
+                  {note}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      ) : (
+        <div style={{
+          textAlign: 'center',
+          padding: 40,
+          color: '#6b7280',
+          border: '1px dashed rgba(16, 185, 129, 0.2)',
+          borderRadius: 12,
+        }}>
+          <p style={{ fontSize: 18, margin: 0 }}>🔒</p>
+          <p style={{ margin: '8px 0 0 0' }}>Inicia sesión para tocar en la jam session</p>
+          <Link href="/login" style={{ color: '#10b981', display: 'inline-block', marginTop: 12 }}>
+            Ir a iniciar sesión →
+          </Link>
+        </div>
+      )}
 
       <div style={{
         marginTop: 16,
