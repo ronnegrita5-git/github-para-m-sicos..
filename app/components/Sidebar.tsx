@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation"
 
 export default function Sidebar() {
   const { user, signOut } = useAuth()
-  const { bandType, setBandType, instruments, getInstrumentIcon } = useBand()
+  const { bandType, setBandType } = useBand()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
 
@@ -22,9 +22,9 @@ export default function Sidebar() {
   }
 
   const bandTypes = [
-    { id: 'pop-rock', label: '🎸 Pop-Rock', icon: '🎸' },
-    { id: 'viento', label: '🎺 Viento', icon: '🎺' },
-    { id: 'cuerda', label: '🎻 Cuerda', icon: '🎻' },
+    { id: 'pop-rock', label: '🎸 Pop-Rock' },
+    { id: 'viento', label: '🎺 Viento' },
+    { id: 'cuerda', label: '🎻 Cuerda' },
   ]
 
   const linkStyle: React.CSSProperties = {
@@ -56,13 +56,6 @@ export default function Sidebar() {
           cursor: "pointer",
           color: "white",
           fontSize: 22,
-          transition: "all 0.3s ease",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "rgba(16, 185, 129, 0.25)"
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "rgba(16, 185, 129, 0.15)"
         }}
       >
         ☰
@@ -170,45 +163,11 @@ export default function Sidebar() {
                     cursor: "pointer",
                     fontSize: 12,
                     fontWeight: bandType === type.id ? "600" : "400",
-                    transition: "all 0.2s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (bandType !== type.id) {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.05)"
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (bandType !== type.id) {
-                      e.currentTarget.style.background = "transparent"
-                    }
                   }}
                 >
                   {type.label}
                 </button>
               ))}
-            </div>
-            <div style={{
-              marginTop: 8,
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 4,
-            }}>
-              {/* 👈 COMPROBACIÓN DE SEGURIDAD PARA instruments */}
-              {instruments && instruments.length > 0 ? (
-                instruments.map((inst) => (
-                  <span key={inst} style={{
-                    fontSize: 11,
-                    color: "#6b7280",
-                    background: "rgba(255,255,255,0.05)",
-                    padding: "2px 8px",
-                    borderRadius: 4,
-                  }}>
-                    {getInstrumentIcon(inst)} {inst}
-                  </span>
-                ))
-              ) : (
-                <span style={{ fontSize: 11, color: "#6b7280" }}>Sin instrumentos</span>
-              )}
             </div>
           </div>
 
@@ -221,78 +180,24 @@ export default function Sidebar() {
             gap: 4,
           }}>
             <li>
-              <Link href="/" onClick={closeSidebar} style={linkStyle}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.05)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent"
-                }}
-              >
-                🏠 Inicio
-              </Link>
+              <Link href="/" onClick={closeSidebar} style={linkStyle}>🏠 Inicio</Link>
             </li>
             <li>
-              <Link href="/explore" onClick={closeSidebar} style={linkStyle}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(255,255,255,0.05)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent"
-                }}
-              >
-                🌍 Explorar
-              </Link>
+              <Link href="/explore" onClick={closeSidebar} style={linkStyle}>🌍 Explorar</Link>
             </li>
             {user && (
               <>
                 <li>
-                  <Link href="/dashboard" onClick={closeSidebar} style={linkStyle}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.05)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                    }}
-                  >
-                    🎸 Dashboard
-                  </Link>
+                  <Link href="/dashboard" onClick={closeSidebar} style={linkStyle}>🎸 Dashboard</Link>
                 </li>
                 <li>
-                  <Link href="/favorites" onClick={closeSidebar} style={linkStyle}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.05)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                    }}
-                  >
-                    ❤️ Favoritos
-                  </Link>
+                  <Link href="/favorites" onClick={closeSidebar} style={linkStyle}>❤️ Favoritos</Link>
                 </li>
                 <li>
-                  <Link href={`/user/${user.id}`} onClick={closeSidebar} style={linkStyle}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.05)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                    }}
-                  >
-                    👤 Mi perfil
-                  </Link>
+                  <Link href={`/user/${user.id}`} onClick={closeSidebar} style={linkStyle}>👤 Mi perfil</Link>
                 </li>
                 <li>
-                  <Link href="/jam" onClick={closeSidebar} style={linkStyle}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(16, 185, 129, 0.15)"
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "transparent"
-                    }}
-                  >
-                    🎹 Jam Session
-                  </Link>
+                  <Link href="/jam" onClick={closeSidebar} style={linkStyle}>🎹 Jam Session</Link>
                 </li>
               </>
             )}
@@ -306,14 +211,7 @@ export default function Sidebar() {
         }}>
           {user ? (
             <div>
-              <div style={{
-                color: "#c4b5fd",
-                fontSize: 14,
-                marginBottom: 8,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}>
+              <div style={{ color: "#c4b5fd", fontSize: 14, marginBottom: 8 }}>
                 👤 {user.email}
               </div>
               <button
@@ -328,13 +226,6 @@ export default function Sidebar() {
                   cursor: "pointer",
                   fontSize: 14,
                   fontWeight: 500,
-                  transition: "all 0.3s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "rgba(239, 68, 68, 0.25)"
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "rgba(239, 68, 68, 0.15)"
                 }}
               >
                 🚪 Cerrar sesión
@@ -352,13 +243,6 @@ export default function Sidebar() {
               borderRadius: 8,
               fontSize: 14,
               fontWeight: 600,
-              transition: "all 0.3s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "scale(1.02)"
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "scale(1)"
             }}>
               🔑 Iniciar sesión
             </Link>

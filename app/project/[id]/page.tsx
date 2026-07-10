@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "../../context/AuthContext"
+import { useBand } from "../../context/BandContext"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Breadcrumbs from "../../components/Breadcrumbs"
@@ -14,6 +15,7 @@ import MultiUpload from "../../components/MultiUpload"
 export default function ProjectPage({ params }: any) {
   const { id } = use(params) as { id: string }
   const { user } = useAuth()
+  const { instruments, getInstrumentIcon } = useBand()
   const router = useRouter()
 
   const [project, setProject] = useState<any>(null)
@@ -515,12 +517,11 @@ export default function ProjectPage({ params }: any) {
               fontSize: 14,
             }}
           >
-            <option value="guitarra">🎸 Guitarra</option>
-            <option value="voz">🎤 Voz</option>
-            <option value="bajo">🎸 Bajo</option>
-            <option value="bateria">🥁 Batería</option>
-            <option value="teclado">🎹 Teclado</option>
-            <option value="otro">🎧 Otro</option>
+            {instruments.map((inst) => (
+              <option key={inst} value={inst.toLowerCase()}>
+                {getInstrumentIcon(inst)} {inst}
+              </option>
+            ))}
           </select>
         )}
 
