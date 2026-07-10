@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { AuthProvider } from "./context/AuthContext"
+import { BandProvider } from "./context/BandContext"
 import Sidebar from "./components/Sidebar"
 import Footer from "./components/Footer"
 import "./globals.css"
@@ -18,17 +19,19 @@ export default function RootLayout({
     <html lang="es">
       <body>
         <AuthProvider>
-          <div style={{
-            display: "flex",
-            flexDirection: "column",
-            minHeight: "100vh",
-          }}>
-            <Sidebar />
-            <main style={{ flex: 1 }}>
-              {children}
-            </main>
-            <Footer />
-          </div>
+          <BandProvider>
+            <div style={{
+              display: "flex",
+              flexDirection: "column",
+              minHeight: "100vh",
+            }}>
+              <Sidebar />
+              <main style={{ flex: 1 }}>
+                {children}
+              </main>
+              <Footer />
+            </div>
+          </BandProvider>
         </AuthProvider>
       </body>
     </html>

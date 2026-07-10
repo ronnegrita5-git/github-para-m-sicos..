@@ -56,9 +56,8 @@ const INSTRUMENTS: Record<BandType, string[]> = {
   ]
 }
 
-// ----- ICONOS PARA CADA INSTRUMENTO (SIN DUPLICADOS) -----
+// ----- ICONOS PARA CADA INSTRUMENTO -----
 const INSTRUMENT_ICONS: Record<string, string> = {
-  // Pop-Rock
   'Guitarra eléctrica': '🎸',
   'Bajo eléctrico': '🎸',
   'Batería': '🥁',
@@ -72,13 +71,11 @@ const INSTRUMENT_ICONS: Record<string, string> = {
   'Clarinete': '🎵',
   'Armónica': '🪗',
   'Percusión': '🥁',
-  // Viento
   'Flauta travesera': '🎵',
   'Oboe': '🎵',
   'Tuba': '🎺',
   'Corneta': '🎺',
   'Fagot': '🎵',
-  // Cuerda
   'Violín': '🎻',
   'Viola': '🎻',
   'Violonchelo': '🎻',
@@ -87,14 +84,12 @@ const INSTRUMENT_ICONS: Record<string, string> = {
   'Guitarra clásica': '🎸',
   'Laúd': '🎵',
   'Mandolina': '🎵',
-  // 👈 SOLO UN 'Piano' (eliminado el duplicado)
   'Piano': '🎹'
 }
 
 export function BandProvider({ children }: { children: React.ReactNode }) {
   const [bandType, setBandType] = useState<BandType>('pop-rock')
 
-  // Cargar preferencia guardada
   useEffect(() => {
     const saved = localStorage.getItem('bandType') as BandType
     if (saved && ['pop-rock', 'viento', 'cuerda'].includes(saved)) {
@@ -102,7 +97,6 @@ export function BandProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  // Guardar preferencia
   const handleSetBandType = (type: BandType) => {
     setBandType(type)
     localStorage.setItem('bandType', type)
@@ -112,11 +106,14 @@ export function BandProvider({ children }: { children: React.ReactNode }) {
     return INSTRUMENT_ICONS[instrument] || '🎵'
   }
 
+  // 👈 Asegurar que siempre devuelve un array
+  const instruments = INSTRUMENTS[bandType] || INSTRUMENTS['pop-rock'] || []
+
   return (
     <BandContext.Provider value={{
       bandType,
       setBandType: handleSetBandType,
-      instruments: INSTRUMENTS[bandType] || INSTRUMENTS['pop-rock'],
+      instruments,
       getInstrumentIcon,
     }}>
       {children}

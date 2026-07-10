@@ -42,7 +42,6 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Botón de hamburguesa */}
       <button
         onClick={toggleSidebar}
         style={{
@@ -69,7 +68,6 @@ export default function Sidebar() {
         ☰
       </button>
 
-      {/* Overlay */}
       {isOpen && (
         <div
           onClick={closeSidebar}
@@ -86,7 +84,6 @@ export default function Sidebar() {
         />
       )}
 
-      {/* Sidebar */}
       <div
         style={{
           position: "fixed",
@@ -105,7 +102,6 @@ export default function Sidebar() {
           boxShadow: "4px 0 40px rgba(0,0,0,0.5)",
         }}
       >
-        {/* Logo */}
         <div style={{
           padding: "0 24px 20px 24px",
           borderBottom: "1px solid rgba(16, 185, 129, 0.1)",
@@ -127,7 +123,6 @@ export default function Sidebar() {
           </Link>
         </div>
 
-        {/* Cerrar */}
         <button
           onClick={closeSidebar}
           style={{
@@ -144,9 +139,7 @@ export default function Sidebar() {
           ✕
         </button>
 
-        {/* Navegación */}
         <nav style={{ flex: 1, padding: "0 16px" }}>
-          {/* 👇 SELECTOR DE TIPO DE BANDA */}
           <div style={{
             marginBottom: 16,
             padding: "12px 16px",
@@ -194,24 +187,28 @@ export default function Sidebar() {
                 </button>
               ))}
             </div>
-            {/* 👇 LISTA DE INSTRUMENTOS SEGÚN EL TIPO SELECCIONADO */}
             <div style={{
               marginTop: 8,
               display: "flex",
               flexWrap: "wrap",
               gap: 4,
             }}>
-              {instruments.map((inst) => (
-                <span key={inst} style={{
-                  fontSize: 11,
-                  color: "#6b7280",
-                  background: "rgba(255,255,255,0.05)",
-                  padding: "2px 8px",
-                  borderRadius: 4,
-                }}>
-                  {getInstrumentIcon(inst)} {inst}
-                </span>
-              ))}
+              {/* 👈 COMPROBACIÓN DE SEGURIDAD PARA instruments */}
+              {instruments && instruments.length > 0 ? (
+                instruments.map((inst) => (
+                  <span key={inst} style={{
+                    fontSize: 11,
+                    color: "#6b7280",
+                    background: "rgba(255,255,255,0.05)",
+                    padding: "2px 8px",
+                    borderRadius: 4,
+                  }}>
+                    {getInstrumentIcon(inst)} {inst}
+                  </span>
+                ))
+              ) : (
+                <span style={{ fontSize: 11, color: "#6b7280" }}>Sin instrumentos</span>
+              )}
             </div>
           </div>
 
@@ -302,7 +299,6 @@ export default function Sidebar() {
           </ul>
         </nav>
 
-        {/* Usuario y acciones */}
         <div style={{
           padding: "16px 24px",
           borderTop: "1px solid rgba(16, 185, 129, 0.1)",
