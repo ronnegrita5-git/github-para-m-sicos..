@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // 👈 FUNCIÓN PARA ACTUALIZAR LA SESIÓN
+  // 👈 FUNCIÓN PARA FORZAR LA RECARGA DE SESIÓN
   async function refreshSession() {
     const { data: { session } } = await supabase.auth.getSession()
     console.log("🔵 Sesión actualizada:", session ? "Sí" : "No")
@@ -127,20 +127,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signInWithGoogle = async () => {
-    const baseUrl = 'https://github-para-musicos-v1yk.vercel.app'
-    const clientId = '49946247144-enqve4b4h0ll5l98a6a332hseci4dmp3.apps.googleusercontent.com'
-    const redirectUri = `${baseUrl}/auth/callback`
-    
-    console.log("🔵 Redirigiendo a Google...")
-    console.log("🔵 Redirect URI:", redirectUri)
-
-    window.location.href =
-      'https://accounts.google.com/o/oauth2/v2/auth?' +
-      `client_id=${clientId}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-      'response_type=code&' +
-      'scope=email%20profile&' +
-      'access_type=offline'
+    console.log("🔵 Iniciando login con Google...")
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: 'https://github-para-musicos-v1yk.vercel.app/auth/callback'
+      }
+    })
+    if (error) {
+      console.error("❌ Error en Google:", error)
+      throw error
+    }
   }
 
   const signOut = async () => {
