@@ -3,10 +3,12 @@
 import { useState } from "react"
 import Link from "next/link"
 import { useAuth } from "../context/AuthContext"
+import { useBand } from "../context/BandContext"
 import { useRouter } from "next/navigation"
 
 export default function Sidebar() {
   const { user, signOut } = useAuth()
+  const { bandType, setBandType, instruments, getInstrumentIcon } = useBand()
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
 
@@ -18,6 +20,12 @@ export default function Sidebar() {
     router.push("/")
     closeSidebar()
   }
+
+  const bandTypes = [
+    { id: 'pop-rock', label: '🎸 Pop-Rock', icon: '🎸' },
+    { id: 'viento', label: '🎺 Viento', icon: '🎺' },
+    { id: 'cuerda', label: '🎻 Cuerda', icon: '🎻' },
+  ]
 
   const linkStyle: React.CSSProperties = {
     display: "flex",
@@ -138,6 +146,75 @@ export default function Sidebar() {
 
         {/* Navegación */}
         <nav style={{ flex: 1, padding: "0 16px" }}>
+          {/* 👇 SELECTOR DE TIPO DE BANDA */}
+          <div style={{
+            marginBottom: 16,
+            padding: "12px 16px",
+            background: "rgba(255,255,255,0.05)",
+            borderRadius: 10,
+            border: "1px solid rgba(16, 185, 129, 0.1)",
+          }}>
+            <p style={{
+              color: "#6b7280",
+              fontSize: 11,
+              margin: "0 0 8px 0",
+              textTransform: "uppercase",
+              letterSpacing: "0.5px",
+            }}>
+              Tipo de banda
+            </p>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {bandTypes.map((type) => (
+                <button
+                  key={type.id}
+                  onClick={() => setBandType(type.id as any)}
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: 6,
+                    background: bandType === type.id ? "rgba(16, 185, 129, 0.2)" : "transparent",
+                    border: bandType === type.id ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(255,255,255,0.1)",
+                    color: bandType === type.id ? "#10b981" : "#9ca3af",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: bandType === type.id ? "600" : "400",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (bandType !== type.id) {
+                      e.currentTarget.style.background = "rgba(255,255,255,0.05)"
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (bandType !== type.id) {
+                      e.currentTarget.style.background = "transparent"
+                    }
+                  }}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
+            {/* 👇 LISTA DE INSTRUMENTOS SEGÚN EL TIPO SELECCIONADO */}
+            <div style={{
+              marginTop: 8,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 4,
+            }}>
+              {instruments.map((inst) => (
+                <span key={inst} style={{
+                  fontSize: 11,
+                  color: "#6b7280",
+                  background: "rgba(255,255,255,0.05)",
+                  padding: "2px 8px",
+                  borderRadius: 4,
+                }}>
+                  {getInstrumentIcon(inst)} {inst}
+                </span>
+              ))}
+            </div>
+          </div>
+
           <ul style={{
             listStyle: "none",
             padding: 0,
@@ -208,7 +285,6 @@ export default function Sidebar() {
                     👤 Mi perfil
                   </Link>
                 </li>
-                {/* 👈 NUEVO: Enlace a Jam Session */}
                 <li>
                   <Link href="/jam" onClick={closeSidebar} style={linkStyle}
                     onMouseEnter={(e) => {
