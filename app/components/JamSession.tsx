@@ -26,6 +26,8 @@ interface InstrumentConfig {
   description: string
   samplePath: string
   notes: Record<string, string>
+  hasDistortion?: boolean
+  hasReverb?: boolean
 }
 
 const INSTRUMENTS: Record<InstrumentType, InstrumentConfig> = {
@@ -63,7 +65,8 @@ const INSTRUMENTS: Record<InstrumentType, InstrumentConfig> = {
       'E4': 'E4.mp3', 'F4': 'F4.mp3', 'F#4': 'Fs4.mp3', 'G4': 'G4.mp3',
       'G#4': 'Gs4.mp3', 'A4': 'A4.mp3', 'A#4': 'As4.mp3', 'B4': 'B4.mp3',
       'C5': 'C5.mp3'
-    }
+    },
+    hasDistortion: true
   },
   'bajo': {
     name: 'Bajo',
@@ -98,7 +101,8 @@ const INSTRUMENTS: Record<InstrumentType, InstrumentConfig> = {
       'E4': 'E4.mp3', 'F4': 'F4.mp3', 'F#4': 'Fs4.mp3', 'G4': 'G4.mp3',
       'G#4': 'Gs4.mp3', 'A4': 'A4.mp3', 'A#4': 'As4.mp3', 'B4': 'B4.mp3',
       'C5': 'C5.mp3'
-    }
+    },
+    hasReverb: true
   }
 }
 
@@ -116,8 +120,6 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
   const [selectedInstrument, setSelectedInstrument] = useState<InstrumentType>('piano')
   const [isLoading, setIsLoading] = useState(true)
   const [isAudioReady, setIsAudioReady] = useState(false)
-  
-  // Estado MIDI
   const [midiEnabled, setMidiEnabled] = useState(false)
   const [midiDeviceName, setMidiDeviceName] = useState<string | null>(null)
   
@@ -125,12 +127,15 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
   const samplerRef = useRef<Tone.Sampler | null>(null)
   const gainRef = useRef<Tone.Gain | null>(null)
   const distortionRef = useRef<Tone.Distortion | null>(null)
+  const reverbRef = useRef<Tone.Reverb | null>(null)
   
   const mediaStreamRef = useRef<MediaStream | null>(null)
   const micGainRef = useRef<Tone.Gain | null>(null)
 
   // Inicializar Tone.js y cargar samples
   useEffect(() => {
+    let isMounted = true
+
     const initAudio = async () => {
       try {
         await Tone.start()
@@ -144,42 +149,59 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
           baseUrl: instrument.samplePath,
           onload: () => {
             console.log(`🎵 Samples de ${instrument.name} cargados`)
-            setIsLoading(false)
-            setIsAudioReady(true)
+            if (isMounted) {
+              setIsLoading(false)
+              setIsAudioReady(true)
+            }
           },
           onerror: (error) => {
             console.error('Error cargando samples:', error)
-            setIsLoading(false)
-            useFallbackOscillator()
+            if (isMounted) {
+              setIsLoading(false)
+              useFallbackOscillator()
+            }
           }
         })
         
         samplerRef.current = sampler
         
-        if (selectedInstrument === 'guitarra-distorsionada') {
+        // Crear cadena de efectos según el instrumento
+        let chain = sampler
+        
+        if (instrument.hasDistortion) {
           const distortion = new Tone.Distortion(0.8)
           distortionRef.current = distortion
-          sampler.connect(distortion)
-          distortion.connect(gain)
-        } else {
-          sampler.connect(gain)
+          chain = chain.connect(distortion) as any
         }
         
+        if (instrument.hasReverb) {
+          const reverb = new Tone.Reverb({ decay: 2, wet: 0.3 })
+          reverbRef.current = reverb
+          chain = chain.connect(reverb) as any
+        }
+        
+        chain.connect(gain)
+        
+        // Cargar samples
         await sampler.load()
         
       } catch (error) {
         console.error('Error iniciando audio:', error)
-        setIsLoading(false)
-        useFallbackOscillator()
+        if (isMounted) {
+          setIsLoading(false)
+          useFallbackOscillator()
+        }
       }
     }
     
     initAudio()
     
     return () => {
+      isMounted = false
       samplerRef.current?.dispose()
       gainRef.current?.dispose()
       distortionRef.current?.dispose()
+      reverbRef.current?.dispose()
     }
   }, [selectedInstrument])
 
@@ -190,16 +212,14 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
         await WebMidi.enable()
         setMidiEnabled(true)
         
-        // Listar dispositivos MIDI disponibles
         const inputs = WebMidi.inputs
         if (inputs.length > 0) {
           setMidiDeviceName(inputs[0].name || 'Teclado MIDI')
           console.log('🎹 Dispositivos MIDI encontrados:', inputs.map(i => i.name))
           
-          // Escuchar eventos MIDI del primer dispositivo
           inputs[0].addListener('noteon', (event) => {
             const note = MIDI_TO_NOTE[event.note.number]
-            if (note && user) {
+            if (note && user && isAudioReady) {
               const velocity = event.velocity / 127
               handleMidiNoteOn(note, velocity)
             }
@@ -209,14 +229,6 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
             const note = MIDI_TO_NOTE[event.note.number]
             if (note && user) {
               handleMidiNoteOff(note)
-            }
-          })
-          
-          // Soporte para sustain pedal (opcional)
-          inputs[0].addListener('controlchange', (event) => {
-            if (event.controller.number === 64) { // Sustain pedal
-              // Podríamos implementar sustain aquí
-              console.log('🎹 Sustain pedal:', event.value > 0 ? 'ON' : 'OFF')
             }
           })
         } else {
@@ -235,7 +247,7 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
     return () => {
       WebMidi.disable()
     }
-  }, [user])
+  }, [user, isAudioReady])
 
   // Función fallback
   const useFallbackOscillator = () => {
@@ -311,6 +323,7 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
     sendNote(note, 'note-off')
   }
 
+  // 🎹 Reproducir nota
   const playNote = (note: string, velocity: number = 100) => {
     if (!samplerRef.current || !isAudioReady) return
     
@@ -372,6 +385,7 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
     sendNote(note, 'note-off')
   }
 
+  // 🎤 Micrófono
   const toggleMic = async () => {
     if (!user) {
       alert('Debes iniciar sesión para usar el micrófono')
@@ -463,7 +477,7 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
           <span style={{ color: '#6b7280', fontSize: 14 }}>
             👥 {participants} participantes
           </span>
-          {isLoading && <span style={{ color: '#fbbf24', fontSize: 12 }}>⏳ Cargando...</span>}
+          {isLoading && <span style={{ color: '#fbbf24', fontSize: 12 }}>⏳ Cargando samples...</span>}
           {!user && (
             <Link href="/login" style={{
               padding: '4px 12px',
@@ -677,8 +691,8 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
       }}>
         <p style={{ margin: 0 }}>
           {user ? (
-            isLoading ? '⏳ Cargando instrumentos...' :
-            `🎵 Toca las teclas con ${INSTRUMENTS[selectedInstrument].icon} ${INSTRUMENTS[selectedInstrument].name}`
+            isLoading ? '⏳ Cargando samples...' :
+            `🎵 Toca con ${INSTRUMENTS[selectedInstrument].icon} ${INSTRUMENTS[selectedInstrument].name}`
           ) : '🎧 Escuchando la jam session en vivo'}
         </p>
         <p style={{ margin: '4px 0 0 0', fontSize: 12 }}>
