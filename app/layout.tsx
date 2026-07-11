@@ -1,39 +1,27 @@
-import type { Metadata } from "next"
-import { AuthProvider } from "./context/AuthContext"
-import { BandProvider } from "./context/BandContext"
-import Sidebar from "./components/Sidebar"
-import Footer from "./components/Footer"
-import "./globals.css"
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "GitHub para Músicos",
-  description: "Plataforma colaborativa para músicos",
-}
+  description: "Plataforma de colaboración musical",
+};
 
 export default function RootLayout({
   children,
-}: {
-  children: React.ReactNode
-}) {
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="es">
-      <body>
-        <AuthProvider>
-          <BandProvider>
-            <div style={{
-              display: "flex",
-              flexDirection: "column",
-              minHeight: "100vh",
-            }}>
-              <Sidebar />
-              <main style={{ flex: 1 }}>
-                {children}
-              </main>
-              <Footer />
-            </div>
-          </BandProvider>
-        </AuthProvider>
+      <body style={{
+        margin: 0,
+        padding: 0,
+        minHeight: '100vh',
+        background: 'black',
+        color: 'white',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}>
+        {children}
       </body>
     </html>
-  )
+  );
 }
