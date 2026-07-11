@@ -62,21 +62,31 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     try {
       const origin = window.location.origin
       console.log('📍 Iniciando login desde:', origin)
+      console.log('🔑 Supabase URL:', process.env.NEXT_PUBLIC_SUPABASE_URL)
       
-      const { error } = await supabase.auth.signInWithOAuth({
+      const redirectUrl = `${origin}/auth/callback`
+      console.log('🔄 Redirigirá a:', redirectUrl)
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${origin}/auth/callback`
+          redirectTo: redirectUrl
         }
       })
       
-      if (error) throw error
+      console.log('📦 Datos devueltos:', data)
+      
+      if (error) {
+        console.error('❌ Error en signInWithOAuth:', error)
+        alert('Error: ' + error.message)
+        return
+      }
       
       console.log('✅ Redirigiendo a Google...')
       
     } catch (error) {
-      console.error('❌ Error en login:', error)
-      alert('Error al iniciar sesión: ' + (error as Error).message)
+      console.error('❌ Error inesperado:', error)
+      alert('Error inesperado: ' + (error as Error).message)
     }
   }
 
