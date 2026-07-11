@@ -14,21 +14,7 @@ export default function ExplorePage() {
       try {
         console.log('🔍 Cargando proyectos...')
         
-        // Primero, verificar que la tabla existe
-        const { data: tableCheck, error: tableError } = await supabase
-          .from('projects')
-          .select('count', { count: 'exact', head: true })
-        
-        console.log('📊 Verificación de tabla:', { tableCheck, tableError })
-        
-        if (tableError) {
-          console.error('❌ Error verificando tabla:', tableError)
-          setError('Error al verificar la tabla: ' + tableError.message)
-          setLoading(false)
-          return
-        }
-        
-        // Obtener proyectos públicos
+        // Consulta directa a la tabla projects
         const { data, error } = await supabase
           .from('projects')
           .select('*')
@@ -39,16 +25,15 @@ export default function ExplorePage() {
         console.log('❌ Error:', error)
         
         if (error) {
-          console.error('❌ Error cargando proyectos:', error)
+          console.error('❌ Error:', error)
           setError('Error al cargar proyectos: ' + error.message)
         } else {
           setProjects(data || [])
-          console.log('✅ Proyectos cargados:', data?.length || 0)
         }
         
-      } catch (error) {
-        console.error('❌ Error inesperado:', error)
-        setError('Error inesperado: ' + (error as Error).message)
+      } catch (err) {
+        console.error('❌ Error inesperado:', err)
+        setError('Error inesperado al cargar proyectos')
       } finally {
         setLoading(false)
       }
@@ -59,28 +44,32 @@ export default function ExplorePage() {
 
   if (loading) {
     return (
-      <div style={{ color: 'white', padding: '20px' }}>
-        ⏳ Cargando proyectos...
+      <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0a', color: 'white' }}>
+        <div style={{ padding: '40px' }}>⏳ Cargando proyectos...</div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div style={{ color: 'white', padding: '20px' }}>
-        ❌ Error: {error}
-        <br />
-        <button onClick={() => window.location.reload()} style={{
-          marginTop: 10,
-          padding: '8px 16px',
-          background: '#10b981',
-          color: 'white',
-          border: 'none',
-          borderRadius: 6,
-          cursor: 'pointer'
-        }}>
-          Reintentar
-        </button>
+      <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0a', color: 'white' }}>
+        <div style={{ padding: '40px' }}>
+          <p>❌ Error: {error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            style={{
+              marginTop: 16,
+              padding: '8px 20px',
+              background: '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: 6,
+              cursor: 'pointer'
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
       </div>
     )
   }
