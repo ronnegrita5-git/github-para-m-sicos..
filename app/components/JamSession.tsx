@@ -4,86 +4,122 @@ import { useEffect, useState, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import Link from "next/link"
+import * as Tone from "tone"
 
-// Mapeo de notas a frecuencias
-const NOTE_FREQUENCIES: Record<string, number> = {
-  'C4': 261.63,
-  'C#4': 277.18,
-  'D4': 293.66,
-  'D#4': 311.13,
-  'E4': 329.63,
-  'F4': 349.23,
-  'F#4': 369.99,
-  'G4': 392.00,
-  'G#4': 415.30,
-  'A4': 440.00,
-  'A#4': 466.16,
-  'B4': 493.88,
-  'C5': 523.25,
-}
-
+// Notas disponibles
 const NOTES = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5']
 
-// 🎸 Definición de instrumentos
+// 🎸 Definición de instrumentos con samples reales
 type InstrumentType = 'piano' | 'guitarra-limpia' | 'guitarra-distorsionada' | 'bajo' | 'bateria' | 'organo-hammond'
 
 interface InstrumentConfig {
   name: string
   icon: string
-  oscType: OscillatorType
-  effects?: {
-    distortion?: number
-    delay?: number
-    reverb?: number
-  }
-  gainMultiplier: number
   description: string
+  // Ruta base para los samples
+  samplePath: string
+  // Mapeo de notas a archivos de sample
+  notes: Record<string, string>
 }
 
+// 📦 Samples gratuitos de la comunidad (usamos CDN de Splice o similares)
+// En este ejemplo usamos samples de calidad de GitHub
 const INSTRUMENTS: Record<InstrumentType, InstrumentConfig> = {
   'piano': {
     name: 'Piano',
     icon: '🎹',
-    oscType: 'sine',
-    gainMultiplier: 0.4,
-    description: 'Sonido clásico de piano'
+    description: 'Piano de cola',
+    samplePath: 'https://cdn.jsdelivr.net/gh/nbrosowsky/tonejs-instruments/samples/piano/',
+    notes: {
+      'C4': 'C4.mp3',
+      'D4': 'D4.mp3',
+      'E4': 'E4.mp3',
+      'F4': 'F4.mp3',
+      'G4': 'G4.mp3',
+      'A4': 'A4.mp3',
+      'B4': 'B4.mp3',
+      'C5': 'C5.mp3',
+    }
   },
   'guitarra-limpia': {
     name: 'Guitarra Limpia',
     icon: '🎸',
-    oscType: 'triangle',
-    gainMultiplier: 0.35,
-    description: 'Guitarra acústica/limpia'
+    description: 'Guitarra acústica',
+    samplePath: 'https://cdn.jsdelivr.net/gh/nbrosowsky/tonejs-instruments/samples/guitar-acoustic/',
+    notes: {
+      'C4': 'C4.mp3',
+      'D4': 'D4.mp3',
+      'E4': 'E4.mp3',
+      'F4': 'F4.mp3',
+      'G4': 'G4.mp3',
+      'A4': 'A4.mp3',
+      'B4': 'B4.mp3',
+      'C5': 'C5.mp3',
+    }
   },
   'guitarra-distorsionada': {
     name: 'Guitarra Distorsionada',
     icon: '🤘',
-    oscType: 'sawtooth',
-    effects: { distortion: 0.8 },
-    gainMultiplier: 0.25,
-    description: 'Guitarra eléctrica con distorsión'
+    description: 'Guitarra eléctrica con distorsión',
+    samplePath: 'https://cdn.jsdelivr.net/gh/nbrosowsky/tonejs-instruments/samples/guitar-electric/',
+    notes: {
+      'C4': 'C4.mp3',
+      'D4': 'D4.mp3',
+      'E4': 'E4.mp3',
+      'F4': 'F4.mp3',
+      'G4': 'G4.mp3',
+      'A4': 'A4.mp3',
+      'B4': 'B4.mp3',
+      'C5': 'C5.mp3',
+    }
   },
   'bajo': {
     name: 'Bajo',
     icon: '🎸',
-    oscType: 'sawtooth',
-    gainMultiplier: 0.5,
-    description: 'Bajo eléctrico'
+    description: 'Bajo eléctrico',
+    samplePath: 'https://cdn.jsdelivr.net/gh/nbrosowsky/tonejs-instruments/samples/bass-electric/',
+    notes: {
+      'C4': 'C4.mp3',
+      'D4': 'D4.mp3',
+      'E4': 'E4.mp3',
+      'F4': 'F4.mp3',
+      'G4': 'G4.mp3',
+      'A4': 'A4.mp3',
+      'B4': 'B4.mp3',
+      'C5': 'C5.mp3',
+    }
   },
   'bateria': {
     name: 'Batería',
     icon: '🥁',
-    oscType: 'square',
-    gainMultiplier: 0.6,
-    description: 'Samples de batería'
+    description: 'Kit de batería acústica',
+    samplePath: 'https://cdn.jsdelivr.net/gh/nbrosowsky/tonejs-instruments/samples/drums/',
+    notes: {
+      'C4': 'kick.mp3',
+      'D4': 'snare.mp3',
+      'E4': 'tom-low.mp3',
+      'F4': 'tom-mid.mp3',
+      'G4': 'tom-high.mp3',
+      'A4': 'hat-closed.mp3',
+      'B4': 'hat-open.mp3',
+      'C5': 'crash.mp3',
+    }
   },
   'organo-hammond': {
     name: 'Órgano Hammond',
     icon: '🎹',
-    oscType: 'sawtooth',
-    effects: { reverb: 0.3 },
-    gainMultiplier: 0.3,
-    description: 'Órgano Hammond B3'
+    description: 'Órgano Hammond B3',
+    samplePath: 'https://cdn.jsdelivr.net/gh/nbrosowsky/tonejs-instruments/samples/organ/',
+    notes: {
+      'C4': 'C4.mp3',
+      'D4': 'D4.mp3',
+      'E4': 'E4.mp3',
+      'F4': 'F4.mp3',
+      'G4': 'G4.mp3',
+      'A4': 'A4.mp3',
+      'B4': 'B4.mp3',
+      'C5': 'C5.mp3',
+    }
   }
 }
 
@@ -99,30 +135,93 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
   const [isMicActive, setIsMicActive] = useState(false)
   const [micVolume, setMicVolume] = useState(50)
   const [selectedInstrument, setSelectedInstrument] = useState<InstrumentType>('piano')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isAudioReady, setIsAudioReady] = useState(false)
   
-  const audioContextRef = useRef<AudioContext | null>(null)
-  const oscillatorsRef = useRef<Map<string, OscillatorNode>>(new Map())
-  const gainsRef = useRef<Map<string, GainNode>>(new Map())
-  const distortionRef = useRef<Map<string, WaveShaperNode>>(new Map())
+  // Referencias para Tone.js
+  const samplerRef = useRef<Tone.Sampler | null>(null)
+  const gainRef = useRef<Tone.Gain | null>(null)
+  const distortionRef = useRef<Tone.Distortion | null>(null)
   
   const mediaStreamRef = useRef<MediaStream | null>(null)
-  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null)
-  const gainNodeRef = useRef<GainNode | null>(null)
+  const micGainRef = useRef<Tone.Gain | null>(null)
 
-  // Inicializar AudioContext
+  // Inicializar Tone.js y cargar samples
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
-    }
-    return () => {
-      audioContextRef.current?.close()
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => track.stop())
+    const initAudio = async () => {
+      try {
+        // Iniciar contexto de audio
+        await Tone.start()
+        
+        // Crear cadena de efectos
+        const gain = new Tone.Gain(0.8).toDestination()
+        gainRef.current = gain
+        
+        // Crear sampler con los samples del instrumento seleccionado
+        const instrument = INSTRUMENTS[selectedInstrument]
+        const sampler = new Tone.Sampler({
+          urls: instrument.notes,
+          baseUrl: instrument.samplePath,
+          onload: () => {
+            console.log(`🎵 Samples de ${instrument.name} cargados`)
+            setIsLoading(false)
+            setIsAudioReady(true)
+          },
+          onerror: (error) => {
+            console.error('Error cargando samples:', error)
+            setIsLoading(false)
+            // Fallback: usar osciladores
+            useFallbackOscillator()
+          }
+        })
+        
+        samplerRef.current = sampler
+        
+        // Conectar sampler a la cadena de efectos
+        if (selectedInstrument === 'guitarra-distorsionada') {
+          const distortion = new Tone.Distortion(0.8)
+          distortionRef.current = distortion
+          sampler.connect(distortion)
+          distortion.connect(gain)
+        } else {
+          sampler.connect(gain)
+        }
+        
+        // Cargar samples
+        await sampler.load()
+        
+      } catch (error) {
+        console.error('Error iniciando audio:', error)
+        setIsLoading(false)
+        useFallbackOscillator()
       }
     }
-  }, [])
+    
+    initAudio()
+    
+    return () => {
+      samplerRef.current?.dispose()
+      gainRef.current?.dispose()
+      distortionRef.current?.dispose()
+    }
+  }, [selectedInstrument])
 
-  // Conectar a Supabase Realtime (incluso sin login para escuchar)
+  // Función fallback por si los samples no cargan
+  const useFallbackOscillator = () => {
+    console.warn('⚠️ Usando osciladores de respaldo')
+    // Aquí iría la implementación con osciladores (la que ya tenías)
+    // Pero simplificamos: usar Tone.Synth
+    try {
+      const synth = new Tone.Synth().toDestination()
+      samplerRef.current = synth as any
+      setIsAudioReady(true)
+      setIsLoading(false)
+    } catch (e) {
+      console.error('Error en fallback:', e)
+    }
+  }
+
+  // Conectar a Supabase Realtime
   useEffect(() => {
     const channel = supabase.channel(`jam:${sessionId}`)
     
@@ -131,11 +230,11 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
         'broadcast',
         { event: 'note' },
         (payload) => {
-          const { note, action, userId, velocity, instrument } = payload.payload
+          const { note, action, userId, velocity } = payload.payload
           if (user && userId === user.id) return
           
           if (action === 'note-on') {
-            playNote(note, velocity, instrument || 'piano')
+            playNote(note, velocity)
             setActiveNotes(prev => new Set(prev).add(note))
           } else if (action === 'note-off') {
             stopNote(note)
@@ -159,191 +258,29 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
     }
   }, [user, sessionId])
 
-  // 🎵 Función para crear distorsión
-  const createDistortion = (amount: number) => {
-    const waveShaper = audioContextRef.current!.createWaveShaper()
-    const curve = new Float32Array(44100)
-    const k = Math.min(1, Math.max(0, amount))
-    for (let i = 0; i < 44100; i++) {
-      const x = (i - 22050) / 22050
-      curve[i] = (3 + k) * x / (1 + k * Math.abs(x))
-    }
-    waveShaper.curve = curve
-    waveShaper.oversample = '4x'
-    return waveShaper
-  }
-
-  // 🎵 Función para crear reverb simple (con delay)
-  const createReverb = (amount: number) => {
-    const ctx = audioContextRef.current!
-    const delay = ctx.createDelay(1.5)
-    delay.delayTime.value = 0.15
-    const gain = ctx.createGain()
-    gain.gain.value = amount * 0.3
-    delay.connect(gain)
-    gain.connect(ctx.destination)
-    return { delay, gain }
-  }
-
-  // 🎹 Reproducir nota con el instrumento seleccionado
-  const playNote = (note: string, velocity: number = 100, instrumentType?: InstrumentType) => {
-    if (!audioContextRef.current) return
-    
-    const freq = NOTE_FREQUENCIES[note]
-    if (!freq) return
-
-    if (oscillatorsRef.current.has(note)) return
-
-    try {
-      const ctx = audioContextRef.current
-      const inst = instrumentType || selectedInstrument
-      const config = INSTRUMENTS[inst]
-      
-      // ⚡ Caso especial: batería (usamos samples)
-      if (inst === 'bateria') {
-        playDrumSample(note, velocity)
-        return
-      }
-
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      
-      // Configurar oscilador según instrumento
-      osc.type = config.oscType
-      osc.frequency.value = freq
-      
-      // Ajustar volumen
-      const volume = Math.min(1, velocity / 127) * config.gainMultiplier
-      gain.gain.value = volume
-      
-      // Cadena de efectos
-      let currentNode: AudioNode = osc
-      
-      // Distorsión para guitarra
-      if (inst === 'guitarra-distorsionada' && config.effects?.distortion) {
-        const dist = createDistortion(config.effects.distortion)
-        osc.connect(dist)
-        dist.connect(gain)
-        distortionRef.current.set(note, dist)
-      } else {
-        osc.connect(gain)
-      }
-      
-      // Reverb para órgano Hammond
-      if (inst === 'organo-hammond' && config.effects?.reverb) {
-        const reverb = createReverb(config.effects.reverb)
-        // Conectar el gain al reverb también
-        const dryGain = ctx.createGain()
-        dryGain.gain.value = 0.7
-        gain.connect(dryGain)
-        dryGain.connect(ctx.destination)
-        
-        // La salida principal ya está conectada
-        gain.connect(ctx.destination)
-      } else {
-        gain.connect(ctx.destination)
-      }
-      
-      osc.start()
-      
-      oscillatorsRef.current.set(note, osc)
-      gainsRef.current.set(note, gain)
-      
-      // Duración automática (2 segundos)
-      setTimeout(() => {
-        stopNote(note)
-      }, 2000)
-      
-    } catch (error) {
-      console.error('Error al reproducir nota:', error)
-    }
-  }
-
-  // 🥁 Samples de batería (usamos osciladores como aproximación)
-  const playDrumSample = (note: string, velocity: number = 100) => {
-    if (!audioContextRef.current) return
-    
-    const ctx = audioContextRef.current
-    const volume = Math.min(1, velocity / 127) * 0.5
-    
-    // Mapeamos notas a diferentes sonidos de batería
-    const drumMap: Record<string, { type: OscillatorType, freq: number, duration: number, decay: number }> = {
-      'C4': { type: 'square', freq: 150, duration: 0.1, decay: 0.05 }, // Kick
-      'D4': { type: 'triangle', freq: 200, duration: 0.15, decay: 0.08 }, // Snare (aproximación)
-      'E4': { type: 'square', freq: 120, duration: 0.08, decay: 0.04 }, // Tom bajo
-      'F4': { type: 'square', freq: 180, duration: 0.08, decay: 0.04 }, // Tom medio
-      'G4': { type: 'square', freq: 240, duration: 0.08, decay: 0.04 }, // Tom alto
-      'A4': { type: 'sawtooth', freq: 8000, duration: 0.03, decay: 0.02 }, // Hi-hat cerrado
-      'B4': { type: 'sawtooth', freq: 10000, duration: 0.06, decay: 0.04 }, // Hi-hat abierto
-      'C5': { type: 'sawtooth', freq: 12000, duration: 0.04, decay: 0.03 }, // Crash
-    }
-    
-    const drum = drumMap[note]
-    if (!drum) {
-      // Fallback: sonido genérico
-      playNote(note, velocity, 'piano')
+  // Reproducir nota con samples
+  const playNote = (note: string, velocity: number = 100) => {
+    if (!samplerRef.current || !isAudioReady) {
       return
     }
     
     try {
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      const noiseGain = ctx.createGain()
-      
-      osc.type = drum.type
-      osc.frequency.value = drum.freq
-      
-      // Envolvente de volumen (decaimiento rápido)
-      gain.gain.setValueAtTime(volume, ctx.currentTime)
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + drum.duration)
-      
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      
-      // Añadir ruido para el snare
-      if (note === 'D4') {
-        const bufferSize = ctx.sampleRate * 0.05
-        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate)
-        const data = buffer.getChannelData(0)
-        for (let i = 0; i < bufferSize; i++) {
-          data[i] = (Math.random() * 2 - 1) * 0.5
-        }
-        const noise = ctx.createBufferSource()
-        noise.buffer = buffer
-        noiseGain.gain.setValueAtTime(volume * 0.3, ctx.currentTime)
-        noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08)
-        noise.connect(noiseGain)
-        noiseGain.connect(ctx.destination)
-        noise.start()
-      }
-      
-      osc.start()
-      osc.stop(ctx.currentTime + drum.duration)
-      
-      // Guardar referencia para poder parar
-      oscillatorsRef.current.set(note, osc)
-      gainsRef.current.set(note, gain)
-      
+      const vel = Math.min(1, velocity / 127)
+      samplerRef.current.triggerAttackRelease(note, 0.5, undefined, vel)
     } catch (error) {
-      console.error('Error al reproducir batería:', error)
+      console.error('Error al reproducir:', error)
     }
   }
 
   const stopNote = (note: string) => {
-    const osc = oscillatorsRef.current.get(note)
-    const gain = gainsRef.current.get(note)
-    const dist = distortionRef.current.get(note)
+    if (!samplerRef.current || !isAudioReady) {
+      return
+    }
     
-    if (osc) {
-      try {
-        if (gain) {
-          gain.gain.setValueAtTime(0, audioContextRef.current?.currentTime || 0)
-        }
-        osc.stop(audioContextRef.current?.currentTime || 0)
-      } catch (e) {}
-      oscillatorsRef.current.delete(note)
-      gainsRef.current.delete(note)
-      distortionRef.current.delete(note)
+    try {
+      samplerRef.current.triggerRelease(note)
+    } catch (error) {
+      console.error('Error al detener:', error)
     }
   }
 
@@ -365,71 +302,8 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
     })
   }
 
-  const toggleMic = async () => {
-    if (!user) {
-      alert('Debes iniciar sesión para usar el micrófono')
-      return
-    }
-
-    if (isMicActive) {
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => track.stop())
-        mediaStreamRef.current = null
-      }
-      if (sourceNodeRef.current) {
-        sourceNodeRef.current.disconnect()
-        sourceNodeRef.current = null
-      }
-      if (gainNodeRef.current) {
-        gainNodeRef.current.disconnect()
-        gainNodeRef.current = null
-      }
-      setIsMicActive(false)
-      return
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: { 
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-        } 
-      })
-      
-      mediaStreamRef.current = stream
-      
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
-      }
-      
-      const source = audioContextRef.current.createMediaStreamSource(stream)
-      sourceNodeRef.current = source
-      
-      const gain = audioContextRef.current.createGain()
-      gain.gain.value = micVolume / 100
-      gainNodeRef.current = gain
-      
-      source.connect(gain)
-      gain.connect(audioContextRef.current.destination)
-      
-      setIsMicActive(true)
-      
-    } catch (error) {
-      console.error('Error al acceder al micrófono:', error)
-      alert('No se pudo acceder al micrófono. Permite el acceso en tu navegador.')
-    }
-  }
-
-  const updateMicVolume = (value: number) => {
-    setMicVolume(value)
-    if (gainNodeRef.current) {
-      gainNodeRef.current.gain.value = value / 100
-    }
-  }
-
   const handleKeyDown = (note: string) => {
-    if (!user) return
+    if (!user || !isAudioReady) return
     
     if (activeNotes.has(note)) return
     
@@ -450,6 +324,62 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
       return newSet
     })
     sendNote(note, 'note-off')
+  }
+
+  // Toggle micrófono
+  const toggleMic = async () => {
+    if (!user) {
+      alert('Debes iniciar sesión para usar el micrófono')
+      return
+    }
+
+    if (isMicActive) {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop())
+        mediaStreamRef.current = null
+      }
+      if (micGainRef.current) {
+        micGainRef.current.dispose()
+        micGainRef.current = null
+      }
+      setIsMicActive(false)
+      return
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { 
+          echoCancellation: false,
+          noiseSuppression: false,
+          autoGainControl: false,
+        } 
+      })
+      
+      mediaStreamRef.current = stream
+      
+      // Conectar micrófono con Tone.js
+      const mic = new Tone.UserMedia()
+      await mic.open()
+      
+      const gain = new Tone.Gain(micVolume / 100)
+      micGainRef.current = gain
+      
+      mic.connect(gain)
+      gain.connect(Tone.getDestination())
+      
+      setIsMicActive(true)
+      
+    } catch (error) {
+      console.error('Error al acceder al micrófono:', error)
+      alert('No se pudo acceder al micrófono. Permite el acceso en tu navegador.')
+    }
+  }
+
+  const updateMicVolume = (value: number) => {
+    setMicVolume(value)
+    if (micGainRef.current) {
+      micGainRef.current.gain.value = value / 100
+    }
   }
 
   return (
@@ -474,6 +404,7 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
           <span style={{ color: '#6b7280', fontSize: 14 }}>
             👥 {participants} participantes
           </span>
+          {isLoading && <span style={{ color: '#fbbf24', fontSize: 12 }}>⏳ Cargando samples...</span>}
           {!user && (
             <Link href="/login" style={{
               padding: '4px 12px',
@@ -507,13 +438,14 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
               <button
                 key={key}
                 onClick={() => setSelectedInstrument(key)}
+                disabled={isLoading}
                 style={{
                   padding: '8px 16px',
                   background: isSelected ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255,255,255,0.08)',
                   color: isSelected ? 'white' : '#9ca3af',
                   border: isSelected ? 'none' : '1px solid rgba(255,255,255,0.1)',
                   borderRadius: 8,
-                  cursor: 'pointer',
+                  cursor: isLoading ? 'not-allowed' : 'pointer',
                   fontSize: 13,
                   fontWeight: isSelected ? 'bold' : 'normal',
                   transition: 'all 0.2s ease',
@@ -521,6 +453,7 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
                   alignItems: 'center',
                   gap: 6,
                   whiteSpace: 'nowrap',
+                  opacity: isLoading ? 0.5 : 1,
                 }}
               >
                 <span>{inst.icon}</span>
@@ -626,7 +559,7 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
                     ? '1px solid #333' 
                     : '1px solid rgba(255,255,255,0.1)',
                   borderRadius: 8,
-                  cursor: 'pointer',
+                  cursor: isAudioReady ? 'pointer' : 'not-allowed',
                   color: 'white',
                   fontSize: 12,
                   fontWeight: 'bold',
@@ -641,7 +574,9 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
                   alignItems: 'flex-end',
                   justifyContent: 'center',
                   paddingBottom: 10,
+                  opacity: isAudioReady ? 1 : 0.5,
                 }}
+                disabled={!isAudioReady}
               >
                 <span style={{ 
                   fontSize: 10, 
@@ -682,7 +617,10 @@ export default function JamSession({ sessionId = 'default' }: JamSessionProps) {
         fontSize: 14,
       }}>
         <p style={{ margin: 0 }}>
-          {user ? `🎵 Toca las teclas con ${INSTRUMENTS[selectedInstrument].icon} ${INSTRUMENTS[selectedInstrument].name}` : '🎧 Escuchando la jam session en vivo'}
+          {user ? (
+            isLoading ? '⏳ Cargando instrumentos...' :
+            `🎵 Toca las teclas con ${INSTRUMENTS[selectedInstrument].icon} ${INSTRUMENTS[selectedInstrument].name}`
+          ) : '🎧 Escuchando la jam session en vivo'}
         </p>
         <p style={{ margin: '4px 0 0 0', fontSize: 12 }}>
           {isConnected ? '✅ Conectado a la jam session' : '⏳ Conectando...'}
