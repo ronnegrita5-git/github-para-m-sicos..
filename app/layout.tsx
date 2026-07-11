@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import AuthProvider from "./context/AuthContext";
 
 export const metadata: Metadata = {
   title: "GitHub para Músicos",
@@ -20,7 +21,9 @@ export default function RootLayout({
         color: 'white',
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}>
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );
