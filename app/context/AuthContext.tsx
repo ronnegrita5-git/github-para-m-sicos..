@@ -4,14 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { User } from '@supabase/supabase-js'
 
-interface AuthContextType {
-  user: User | null
-  loading: boolean
-  signInWithGoogle: () => Promise<void>
-  signOut: () => Promise<void>
-}
-
-const AuthContext = createContext<AuthContextType | null>(null)
+const AuthContext = createContext<any>(null)
 
 export const useAuth = () => {
   const context = useContext(AuthContext)
@@ -26,19 +19,13 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const getSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        setUser(session?.user ?? null)
-      } catch (error) {
-        console.error('Error obteniendo sesión:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
+    // Obtener sesión al cargar
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null)
+      setLoading(false)
+    })
 
-    getSession()
-
+    // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
       setLoading(false)
@@ -49,31 +36,22 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   const signInWithGoogle = async () => {
     try {
-      console.log('🔄 Iniciando login con Google...')
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin + '/auth/callback'
+          redirectTo: 'https://github-para-musicos-jet.vercel.app/auth/callback'
         }
       })
-      if (error) {
-        console.error('❌ Error en signInWithOAuth:', error)
-        throw error
-      }
-      console.log('✅ Redirigiendo a Google...')
+      if (error) throw error
     } catch (error) {
-      console.error('❌ Error en signInWithGoogle:', error)
+      console.error('Error en login:', error)
       alert('Error al iniciar sesión: ' + (error as Error).message)
     }
   }
 
   const signOut = async () => {
-    try {
-      await supabase.auth.signOut()
-      setUser(null)
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error)
-    }
+    await supabase.auth.signOut()
+    setUser(null)
   }
 
   return (

@@ -9,5 +9,5 @@ export async function GET(request: Request) {
     await supabase.auth.exchangeCodeForSession(code)
   }
   
-  return NextResponse.redirect(new URL('/dashboard', request.url))
+  return NextResponse.redirect('https://github-para-musicos-jet.vercel.app/dashboard')
 }
