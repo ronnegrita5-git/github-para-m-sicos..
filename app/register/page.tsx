@@ -4,12 +4,14 @@ import { useAuth } from '../context/AuthContext'
 import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
-export default function LoginPage() {
-  const { user, loading, signInWithGoogle, signInWithEmail } = useAuth()
+export default function RegisterPage() {
+  const { user, loading, signInWithGoogle } = useAuth()
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [loadingSubmit, setLoadingSubmit] = useState(false)
 
@@ -22,13 +24,36 @@ export default function LoginPage() {
     return null
   }
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    
+    if (password !== confirmPassword) {
+      setError('❌ Las contraseñas no coinciden')
+      return
+    }
+    
+    if (password.length < 6) {
+      setError('❌ La contraseña debe tener al menos 6 caracteres')
+      return
+    }
+
     setLoadingSubmit(true)
     try {
-      await signInWithEmail(email, password)
-      router.push('/dashboard')
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`
+        }
+      })
+      
+      if (error) throw error
+      
+      if (data?.user) {
+        alert('✅ ¡Registro exitoso! Revisa tu correo para confirmar tu cuenta.')
+        router.push('/login')
+      }
     } catch (err) {
       setError('❌ ' + (err as Error).message)
     } finally {
@@ -43,7 +68,6 @@ export default function LoginPage() {
       background: '#0a0a0a',
       color: 'white'
     }}>
-      {/* Barra lateral */}
       <aside style={{
         width: 240,
         padding: '24px 16px',
@@ -65,8 +89,7 @@ export default function LoginPage() {
         <Link href="/login" style={{
           padding: '10px 12px',
           borderRadius: 8,
-          background: 'rgba(16, 185, 129, 0.1)',
-          color: '#10b981',
+          color: '#9ca3af',
           textDecoration: 'none',
           display: 'block'
         }}>
@@ -75,7 +98,8 @@ export default function LoginPage() {
         <Link href="/register" style={{
           padding: '10px 12px',
           borderRadius: 8,
-          color: '#9ca3af',
+          background: 'rgba(16, 185, 129, 0.1)',
+          color: '#10b981',
           textDecoration: 'none',
           display: 'block'
         }}>
@@ -83,7 +107,6 @@ export default function LoginPage() {
         </Link>
       </aside>
 
-      {/* Contenido principal */}
       <main style={{
         flex: 1,
         display: 'flex',
@@ -101,7 +124,7 @@ export default function LoginPage() {
           border: '1px solid rgba(255,255,255,0.1)'
         }}>
           <h1 style={{ fontSize: 32, marginBottom: 8, textAlign: 'center' }}>🎵</h1>
-          <h2 style={{ marginBottom: 24, textAlign: 'center' }}>Iniciar sesión</h2>
+          <h2 style={{ marginBottom: 24, textAlign: 'center' }}>Crear cuenta</h2>
           
           {error && (
             <div style={{
@@ -117,7 +140,6 @@ export default function LoginPage() {
             </div>
           )}
 
-          {/* Botón de Google */}
           <button
             onClick={signInWithGoogle}
             style={{
@@ -146,7 +168,7 @@ export default function LoginPage() {
                 <path d="M0 0h18v18H0z" fill="none"/>
               </g>
             </svg>
-            Continuar con Google
+            Registrarse con Google
           </button>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, color: '#666' }}>
@@ -155,8 +177,7 @@ export default function LoginPage() {
             <hr style={{ flex: 1, borderColor: '#333' }} />
           </div>
 
-          {/* Formulario de email/contraseña */}
-          <form onSubmit={handleEmailLogin}>
+          <form onSubmit={handleRegister}>
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 6, fontSize: 14, color: '#9ca3af' }}>
                 Correo electrónico
@@ -177,7 +198,7 @@ export default function LoginPage() {
                 }}
               />
             </div>
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', marginBottom: 6, fontSize: 14, color: '#9ca3af' }}>
                 Contraseña
               </label>
@@ -185,6 +206,26 @@ export default function LoginPage() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: '1px solid #333',
+                  background: 'rgba(255,255,255,0.05)',
+                  color: 'white',
+                  fontSize: 16
+                }}
+              />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', marginBottom: 6, fontSize: 14, color: '#9ca3af' }}>
+                Confirmar contraseña
+              </label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 style={{
                   width: '100%',
@@ -213,12 +254,12 @@ export default function LoginPage() {
                 opacity: loadingSubmit ? 0.6 : 1
               }}
             >
-              {loadingSubmit ? 'Iniciando sesión...' : 'Iniciar sesión'}
+              {loadingSubmit ? 'Registrando...' : 'Registrarse'}
             </button>
           </form>
 
           <div style={{ marginTop: 16, textAlign: 'center', color: '#6b7280', fontSize: 14 }}>
-            ¿No tienes cuenta? <Link href="/register" style={{ color: '#10b981' }}>Regístrate</Link>
+            ¿Ya tienes cuenta? <Link href="/login" style={{ color: '#10b981' }}>Inicia sesión</Link>
           </div>
         </div>
       </main>

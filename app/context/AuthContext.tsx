@@ -13,6 +13,7 @@ interface AuthContextType {
   user: User | null
   loading: boolean
   signInWithGoogle: () => Promise<void>
+  signInWithEmail: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
 
@@ -57,33 +58,27 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const signInWithGoogle = async () => {
     try {
       const origin = window.location.origin
-      console.log('📍 Login desde:', origin)
-      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${origin}/auth/callback`
         }
       })
-      
-      if (error) {
-        console.error('❌ Error:', error)
-        alert('Error: ' + error.message)
-        return
-      }
-      
-      if (data?.url) {
-        console.log('🔄 Redirigiendo a:', data.url)
-        window.location.href = data.url
-      } else {
-        console.error('❌ No se recibió URL de redirección')
-        alert('No se pudo obtener la URL de Google')
-      }
-      
+      if (error) throw error
+      if (data?.url) window.location.href = data.url
     } catch (error) {
-      console.error('❌ Error inesperado:', error)
-      alert('Error inesperado: ' + (error as Error).message)
+      console.error('❌ Error:', error)
+      alert('Error al iniciar sesión con Google')
     }
+  }
+
+  const signInWithEmail = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    })
+    if (error) throw error
+    setUser(data.user)
   }
 
   const signOut = async () => {
@@ -92,7 +87,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signInWithEmail, signOut }}>
       {children}
     </AuthContext.Provider>
   )
