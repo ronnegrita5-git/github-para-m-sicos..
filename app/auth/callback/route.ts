@@ -4,7 +4,6 @@ import { supabase } from '@/lib/supabase'
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/dashboard'
   
   if (code) {
     try {
@@ -14,7 +13,6 @@ export async function GET(request: Request) {
     }
   }
   
-  // Redirigir al dashboard o a la página que corresponda
-  const redirectUrl = new URL(next, request.url)
-  return NextResponse.redirect(redirectUrl)
+  // ⭐ REDIRIGIR A LA URL DE PRODUCCIÓN ⭐
+  return NextResponse.redirect('https://github-para-musicos-v1yk.vercel.app/dashboard')
 }

@@ -52,13 +52,14 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   const signInWithGoogle = async () => {
     try {
-      const origin = window.location.origin
-      console.log('📍 Login desde:', origin)
+      // ⭐ FORZAR LA URL DE PRODUCCIÓN ⭐
+      const redirectUrl = 'https://github-para-musicos-v1yk.vercel.app/auth/callback'
+      console.log('📍 Redirigiendo a:', redirectUrl)
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${origin}/auth/callback`
+          redirectTo: redirectUrl
         }
       })
       
