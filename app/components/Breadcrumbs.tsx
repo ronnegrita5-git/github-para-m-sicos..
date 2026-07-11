@@ -1,82 +1,46 @@
 "use client"
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+
+const breadcrumbMap: Record<string, string> = {
+  "login": "Iniciar sesión",
+  "dashboard": "Dashboard",
+  "jam": "Jam Session",
+  "explore": "Explorar",
+  "user": "Perfil"
+}
 
 export default function Breadcrumbs() {
   const pathname = usePathname()
-  
-  if (pathname === "/") return null
-  
-  const segments = pathname.split("/").filter(Boolean)
-  
-  const getLabel = (segment: string, index: number, segments: string[]) => {
-    if (segment.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)) {
-      if (segments[index - 1] === "project") return "Proyecto"
-      if (segments[index - 1] === "user") return "Perfil"
-      return "Detalle"
-    }
-    
-    const labels: Record<string, string> = {
-      "dashboard": "Dashboard",
-      "explore": "Explorar",
-      "project": "Proyectos",
-      "user": "Usuarios",
-      "login": "Iniciar sesión",
-      "profile": "Mi perfil",
-      "pr": "Pull Requests",
-      "favorites": "Favoritos",
-    }
-    
-    return labels[segment] || segment.charAt(0).toUpperCase() + segment.slice(1)
-  }
-  
-  const buildPath = (index: number) => {
-    return "/" + segments.slice(0, index + 1).join("/")
-  }
-  
+  const segments = pathname.split('/').filter(Boolean)
+
+  if (segments.length === 0) return null
+
   return (
-    <nav style={{
-      padding: "16px 0 12px 70px",  // 👈 Desplazado 70px a la derecha
+    <div style={{
+      padding: '12px 24px',
       fontSize: 14,
-      color: "#6b7280",
-      maxWidth: 1200,
-      margin: "0 auto",
-      marginTop: "12px",
+      color: '#888',
+      borderBottom: '1px solid rgba(255,255,255,0.05)'
     }}>
-      <Link href="/" style={{ color: "#10b981", textDecoration: "none" }}>
-        Inicio
-      </Link>
-      
+      <Link href="/" style={{ color: '#888', textDecoration: 'none' }}>Inicio</Link>
       {segments.map((segment, index) => {
+        const path = '/' + segments.slice(0, index + 1).join('/')
         const isLast = index === segments.length - 1
-        const label = getLabel(segment, index, segments)
-        const path = buildPath(index)
-        
-        if (segment.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)) {
-          return (
-            <span key={index} style={{ display: "inline-flex", alignItems: "center" }}>
-              <span style={{ margin: "0 8px", color: "#374151" }}>›</span>
-              <span style={{ color: isLast ? "#e5e5e5" : "#10b981" }}>
-                {label}
-              </span>
-            </span>
-          )
-        }
+        const label = breadcrumbMap[segment] || segment.charAt(0).toUpperCase() + segment.slice(1)
         
         return (
-          <span key={index} style={{ display: "inline-flex", alignItems: "center" }}>
-            <span style={{ margin: "0 8px", color: "#374151" }}>›</span>
+          <span key={path}>
+            <span style={{ margin: '0 8px' }}>/</span>
             {isLast ? (
-              <span style={{ color: "#e5e5e5" }}>{label}</span>
+              <span style={{ color: 'white' }}>{label}</span>
             ) : (
-              <Link href={path} style={{ color: "#10b981", textDecoration: "none" }}>
-                {label}
-              </Link>
+              <Link href={path} style={{ color: '#888', textDecoration: 'none' }}>{label}</Link>
             )}
           </span>
         )
       })}
-    </nav>
+    </div>
   )
 }
