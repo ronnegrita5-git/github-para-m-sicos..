@@ -32,14 +32,16 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const getSession = async () => {
+  // Función para actualizar el estado del usuario
+  const updateUser = async () => {
     try {
       const { data, error } = await supabase.auth.getSession()
       if (error) throw error
-      console.log('🔍 Sesión obtenida:', data?.session?.user?.email || 'No hay sesión')
-      setUser(data?.session?.user ?? null)
+      const currentUser = data?.session?.user ?? null
+      console.log('👤 Usuario actualizado:', currentUser?.email || 'No hay usuario')
+      setUser(currentUser)
     } catch (error) {
-      console.error('Error obteniendo sesión:', error)
+      console.error('Error actualizando usuario:', error)
       setUser(null)
     } finally {
       setLoading(false)
@@ -47,17 +49,20 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   }
 
   useEffect(() => {
-    getSession()
+    // Cargar sesión inicial
+    updateUser()
 
+    // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('🔐 Evento de autenticación:', event)
-      console.log('👤 Usuario:', session?.user?.email || 'No hay usuario')
+      console.log('🔐 Evento:', event)
       
-      // Manejar eventos de autenticación
-      if (event === 'SIGNED_OUT') {
+      // Actualizar el estado del usuario
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setUser(session?.user ?? null)
+        console.log('✅ Usuario logueado:', session?.user?.email)
+      } else if (event === 'SIGNED_OUT') {
         setUser(null)
-      } else if (session) {
-        setUser(session.user)
+        console.log('❌ Usuario deslogueado')
       }
       setLoading(false)
     })

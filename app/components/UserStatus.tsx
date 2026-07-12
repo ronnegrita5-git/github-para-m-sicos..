@@ -2,11 +2,17 @@
 
 import { useAuth } from '../context/AuthContext'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 
 export default function UserStatus() {
   const { user, loading, signOut } = useAuth()
+  const [isClient, setIsClient] = useState(false)
 
-  if (loading) {
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  if (!isClient || loading) {
     return <span style={{ color: '#6b7280', fontSize: 14 }}>⏳ Cargando...</span>
   }
 
