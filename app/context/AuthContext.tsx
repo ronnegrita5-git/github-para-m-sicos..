@@ -32,7 +32,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Función para obtener la sesión actual
   const getSession = async () => {
     try {
       const { data, error } = await supabase.auth.getSession()
@@ -48,15 +47,14 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   }
 
   useEffect(() => {
-    // Obtener sesión al cargar
     getSession()
 
-    // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('🔐 Evento de autenticación:', event)
       console.log('👤 Usuario:', session?.user?.email || 'No hay usuario')
       
-      if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+      // Manejar eventos de autenticación
+      if (event === 'SIGNED_OUT') {
         setUser(null)
       } else if (session) {
         setUser(session.user)
@@ -98,7 +96,6 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       await supabase.auth.signOut()
       setUser(null)
       console.log('✅ Sesión cerrada')
-      // Redirigir a la página principal
       window.location.href = '/'
     } catch (error) {
       console.error('Error cerrando sesión:', error)
