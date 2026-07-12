@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
-// Definir el tipo de proyecto
 interface Project {
   id: string
   title: string | null
@@ -12,6 +11,7 @@ interface Project {
   is_public: boolean
   created_at: string
   user_id: string
+  // Si hay otros campos, se ignoran
 }
 
 export default function ExplorePage() {
@@ -30,15 +30,21 @@ export default function ExplorePage() {
           .eq('is_public', true)
           .order('created_at', { ascending: false })
         
-        console.log('📦 Datos recibidos:', data)
-        
         if (error) {
           console.error('❌ Error:', error)
           setError(error.message)
         } else {
-          setProjects(data || [])
+          // ✅ Asegurar que los datos son seguros para renderizar
+          const safeData = (data || []).map((project: any) => ({
+            id: String(project.id || ''),
+            title: String(project.title || 'Proyecto sin título'),
+            description: String(project.description || 'Sin descripción'),
+            is_public: Boolean(project.is_public),
+            created_at: String(project.created_at || ''),
+            user_id: String(project.user_id || ''),
+          }))
+          setProjects(safeData)
         }
-        
       } catch (err) {
         console.error('❌ Error inesperado:', err)
         setError('Error inesperado al cargar proyectos')
@@ -151,33 +157,27 @@ export default function ExplorePage() {
             gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
             gap: '20px'
           }}>
-            {projects.map((project) => {
-              // ✅ Asegurar que todos los valores son strings
-              const title = project.title || 'Proyecto sin título'
-              const description = project.description || 'Sin descripción'
-              
-              return (
-                <div key={project.id} style={{
-                  background: 'rgba(255,255,255,0.05)',
-                  borderRadius: 12,
-                  padding: '20px',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  transition: 'all 0.2s'
+            {projects.map((project) => (
+              <div key={project.id} style={{
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: 12,
+                padding: '20px',
+                border: '1px solid rgba(255,255,255,0.1)',
+                transition: 'all 0.2s'
+              }}>
+                <h3 style={{ margin: 0, marginBottom: 8 }}>{project.title}</h3>
+                <p style={{ color: '#9ca3af', fontSize: 14, marginBottom: 12 }}>
+                  {project.description}
+                </p>
+                <Link href={`/project/${project.id}`} style={{
+                  color: '#10b981',
+                  textDecoration: 'none',
+                  fontSize: 14
                 }}>
-                  <h3 style={{ margin: 0, marginBottom: 8 }}>{title}</h3>
-                  <p style={{ color: '#9ca3af', fontSize: 14, marginBottom: 12 }}>
-                    {description}
-                  </p>
-                  <Link href={`/project/${project.id}`} style={{
-                    color: '#10b981',
-                    textDecoration: 'none',
-                    fontSize: 14
-                  }}>
-                    Ver proyecto →
-                  </Link>
-                </div>
-              )
-            })}
+                  Ver proyecto →
+                </Link>
+              </div>
+            ))}
           </div>
         )}
       </main>
