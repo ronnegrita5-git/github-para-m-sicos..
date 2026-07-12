@@ -19,10 +19,10 @@ interface AuthContextType {
   signOut: () => Promise<void>
 }
 
-// Crear el contexto con un valor por defecto
+// Crear el contexto
 const AuthContext = createContext<AuthContextType | null>(null)
 
-// Hook personalizado
+// Hook personalizado (SIN use())
 export const useAuth = () => {
   const context = useContext(AuthContext)
   if (!context) {
@@ -36,25 +36,25 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
+  // Cargar sesión al montar
   useEffect(() => {
-    // Obtener sesión inicial
-    const getSession = async () => {
+    const loadSession = async () => {
       try {
         const { data, error } = await supabase.auth.getSession()
         if (error) throw error
         setUser(data?.session?.user ?? null)
       } catch (error) {
-        console.error('Error obteniendo sesión:', error)
+        console.error('Error al cargar sesión:', error)
       } finally {
         setLoading(false)
       }
     }
 
-    getSession()
+    loadSession()
 
-    // Suscribirse a cambios de autenticación
+    // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('🔐 Evento:', event)
+      console.log('🔐 Evento de auth:', event)
       if (event === 'SIGNED_OUT') {
         setUser(null)
       } else if (session) {
@@ -66,6 +66,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
+  // Funciones de autenticación
   const signInWithGoogle = async () => {
     try {
       const origin = window.location.origin
@@ -78,15 +79,20 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw error
       if (data?.url) window.location.href = data.url
     } catch (error) {
-      console.error('Error en login:', error)
+      console.error('Error en login con Google:', error)
       alert('Error al iniciar sesión con Google')
     }
   }
 
   const signInWithEmail = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
-    setUser(data.user)
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) throw error
+      setUser(data.user)
+    } catch (error) {
+      console.error('Error en login con email:', error)
+      throw error
+    }
   }
 
   const signOut = async () => {
@@ -95,7 +101,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null)
       window.location.href = '/'
     } catch (error) {
-      console.error('Error cerrando sesión:', error)
+      console.error('Error al cerrar sesión:', error)
     }
   }
 
