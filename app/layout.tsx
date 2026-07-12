@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import AuthProvider from "./context/AuthContext";
-import UserStatus from "./components/UserStatus";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -24,7 +23,7 @@ export default function RootLayout({
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}>
         <AuthProvider>
-          {/* Navbar global */}
+          {/* Navbar SIMPLE sin UserStatus */}
           <nav style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -45,7 +44,18 @@ export default function RootLayout({
               <Link href="/" style={{ color: '#9ca3af', textDecoration: 'none' }}>Inicio</Link>
               <Link href="/explore" style={{ color: '#9ca3af', textDecoration: 'none' }}>Explorar</Link>
               <Link href="/jam" style={{ color: '#9ca3af', textDecoration: 'none' }}>Jam Session</Link>
-              <UserStatus />
+              {/* UserStatus eliminado para aislar el error */}
+              <Link href="/login" style={{
+                padding: '8px 16px',
+                background: '#10b981',
+                color: 'white',
+                borderRadius: 6,
+                textDecoration: 'none',
+                fontSize: 14,
+                fontWeight: 'bold'
+              }}>
+                🔑 Iniciar sesión
+              </Link>
             </div>
           </nav>
           {children}
