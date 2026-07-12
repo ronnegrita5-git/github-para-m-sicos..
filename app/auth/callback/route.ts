@@ -6,13 +6,16 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   
+  console.log('📥 Callback recibido')
+  console.log('📥 Código:', code ? 'Sí' : 'No')
+  
   if (!code) {
     console.error('❌ No se recibió código')
     return NextResponse.redirect(new URL('/login?error=no-code', request.url))
   }
 
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,6 +35,7 @@ export async function GET(request: Request) {
       }
     )
     
+    console.log('🔄 Intercambiando código por sesión...')
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (error) {
@@ -40,8 +44,9 @@ export async function GET(request: Request) {
     }
     
     console.log('✅ Sesión establecida para:', data.user?.email)
+    console.log('✅ Access token:', data.session?.access_token?.substring(0, 20) + '...')
     
-    // IMPORTANTE: Redirigir al dashboard
+    // Redirigir al dashboard
     return NextResponse.redirect(new URL('/dashboard', request.url))
     
   } catch (error) {

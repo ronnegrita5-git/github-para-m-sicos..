@@ -7,4 +7,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ Faltan variables de entorno de Supabase')
 }
 
-export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+  cookieOptions: {
+    name: 'sb-auth-token',
+    lifetime: 60 * 60 * 24 * 7, // 7 días
+    domain: '.vercel.app',
+    path: '/',
+    sameSite: 'lax',
+    secure: true,
+  }
+})
