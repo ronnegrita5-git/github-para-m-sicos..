@@ -301,7 +301,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       {hasAudio ? (
                         <span style={{ color: "#10b981", fontSize: 12 }}>
-                          {isCurrentTrack ? "🔊 Reproduciendo" hasAudio ? "🎵" : ""}
+                          {isCurrentTrack ? "🔊 Reproduciendo" : "🎵"}
                         </span>
                       ) : (
                         <span style={{ color: "#6b7280", fontSize: 12 }}>Sin audio</span>
