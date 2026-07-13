@@ -33,6 +33,41 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // ✅ Procesar el token si está en el fragmento de la URL
+    const processHashToken = async () => {
+      if (typeof window !== 'undefined' && window.location.hash) {
+        const hashParams = new URLSearchParams(window.location.hash.replace('#', '?'))
+        const accessToken = hashParams.get('access_token')
+        const refreshToken = hashParams.get('refresh_token')
+        
+        if (accessToken) {
+          console.log('🔑 Token encontrado en el fragmento, estableciendo sesión...')
+          try {
+            const { data, error } = await supabase!.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken || '',
+            })
+            
+            if (error) {
+              console.error('❌ Error estableciendo sesión:', error)
+              // Limpiar el hash de la URL
+              window.history.replaceState(null, '', window.location.pathname)
+              return
+            }
+            
+            console.log('✅ Sesión establecida para:', data.user?.email)
+            setUser(data.user)
+            // Limpiar el hash de la URL
+            window.history.replaceState(null, '', window.location.pathname)
+            // Redirigir a /explore
+            window.location.href = '/explore'
+          } catch (error) {
+            console.error('❌ Error procesando token:', error)
+          }
+        }
+      }
+    }
+
     const loadSession = async () => {
       try {
         const { data, error } = await supabase!.auth.getSession()
@@ -46,6 +81,9 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Primero procesar el token del hash
+    processHashToken()
+    // Luego cargar la sesión
     loadSession()
 
     const { data: { subscription } } = supabase!.auth.onAuthStateChange((event, session) => {
