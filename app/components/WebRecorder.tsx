@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase"
 
 interface WebRecorderProps {
   projectId?: string
-  onRecordingComplete?: () => void
+  onRecordingComplete?: (audioUrl: string) => void
 }
 
 export default function WebRecorder({ projectId, onRecordingComplete }: WebRecorderProps) {
@@ -15,6 +15,7 @@ export default function WebRecorder({ projectId, onRecordingComplete }: WebRecor
   const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [recordingTime, setRecordingTime] = useState(0)
   const [isUploading, setIsUploading] = useState(false)
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
@@ -49,7 +50,7 @@ export default function WebRecorder({ projectId, onRecordingComplete }: WebRecor
         }
 
         if (onRecordingComplete) {
-          onRecordingComplete()
+          onRecordingComplete(url)
         }
       }
 
@@ -67,37 +68,60 @@ export default function WebRecorder({ projectId, onRecordingComplete }: WebRecor
   }
 
   const uploadAudio = async (blob: Blob) => {
-    if (!user) return
+    if (!user || !projectId) return
     setIsUploading(true)
 
     try {
-      const fileName = `audio_${Date.now()}.webm`
+      const fileName = `${projectId}/recording_${Date.now()}.webm`
+      
+      // Subir a Storage
       const { error: uploadError } = await supabase!
         .storage
         .from("audio")
-        .upload(fileName, blob)
+        .upload(fileName, blob, {
+          cacheControl: '3600',
+          upsert: false
+        })
 
-      if (uploadError) throw uploadError
+      if (uploadError) {
+        console.error("Error subiendo audio:", uploadError)
+        throw uploadError
+      }
 
-      const { data: urlData } = await supabase!
+      // Obtener URL pública
+      const { data: urlData } = supabase!
         .storage
         .from("audio")
         .getPublicUrl(fileName)
+      
+      const audioUrl = urlData.publicUrl
+      console.log("🔊 URL del audio grabado:", audioUrl)
+      setUploadedUrl(audioUrl)
 
-      if (projectId) {
-        await supabase!
-          .from("tracks")
-          .insert({
-            project_id: projectId,
-            user_id: user.id,
-            name: `Grabación ${new Date().toLocaleString()}`,
-            file_url: urlData?.publicUrl || "",
-            type: "audio/webm",
-          })
+      // Guardar en la tabla tracks
+      const { error: dbError } = await supabase!
+        .from("tracks")
+        .insert({
+          project_id: projectId,
+          user_id: user.id,
+          name: `Grabación ${new Date().toLocaleString()}`,
+          audio_url: audioUrl,
+          file_url: audioUrl,
+          type: "audio/webm",
+          source: "recording"
+        })
+
+      if (dbError) {
+        console.error("Error guardando en DB:", dbError)
+        throw dbError
       }
+
+      console.log("✅ Grabación guardada correctamente")
+      alert("✅ Grabación subida correctamente")
+
     } catch (error) {
-      console.error("Error subiendo audio:", error)
-      alert("Error al subir el audio")
+      console.error("Error en uploadAudio:", error)
+      alert("Error al subir la grabación")
     } finally {
       setIsUploading(false)
     }
@@ -193,6 +217,13 @@ export default function WebRecorder({ projectId, onRecordingComplete }: WebRecor
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <audio controls src={audioUrl} style={{ height: 40 }} />
             <span style={{ color: "#10b981", fontSize: 14 }}>✅ Grabación lista</span>
+          </div>
+        )}
+
+        {uploadedUrl && !isRecording && !isUploading && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <audio controls src={uploadedUrl} style={{ height: 40 }} />
+            <span style={{ color: "#10b981", fontSize: 14 }}>✅ Subida a la nube</span>
           </div>
         )}
       </div>
