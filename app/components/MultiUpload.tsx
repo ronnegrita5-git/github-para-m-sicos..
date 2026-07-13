@@ -19,9 +19,13 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
     error: []
   })
 
+  console.log("🔧 MultiUpload montado, projectId:", projectId)
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("📂 handleFileSelect llamado")
     if (e.target.files) {
       const fileList = Array.from(e.target.files)
+      console.log("📂 Archivos seleccionados:", fileList.map(f => f.name))
       setFiles((prev) => [...prev, ...fileList])
       
       const newProgress: Record<string, number> = {}
@@ -33,6 +37,7 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
   }
 
   const removeFile = (fileName: string) => {
+    console.log("🗑️ Eliminando archivo:", fileName)
     setFiles((prev) => prev.filter((f) => f.name !== fileName))
     setProgress((prev) => {
       const newProgress = { ...prev }
@@ -42,20 +47,38 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
   }
 
   const handleUpload = async () => {
-    if (!user || files.length === 0) return
+    console.log("🚀 handleUpload llamado")
+    console.log("👤 Usuario:", user?.id)
+    console.log("📁 ProjectId:", projectId)
+    console.log("📄 Archivos:", files.map(f => f.name))
+    
+    if (!user) {
+      console.error("❌ No hay usuario")
+      alert("Debes iniciar sesión")
+      return
+    }
+    
+    if (files.length === 0) {
+      console.error("❌ No hay archivos")
+      alert("Selecciona al menos un archivo")
+      return
+    }
     
     setUploading(true)
     setResults({ success: [], error: [] })
     
     try {
       for (const file of files) {
+        console.log(`📤 Procesando: ${file.name} (${file.size} bytes, ${file.type})`)
+        
         try {
-          console.log(`📤 Subiendo: ${file.name}`)
           setProgress((prev) => ({ ...prev, [file.name]: 10 }))
           
           // ✅ 1. Subir archivo a Storage
           const fileName = `${projectId}/${Date.now()}-${file.name}`
-          const { error: uploadError } = await supabase
+          console.log(`📤 Subiendo a Storage: ${fileName}`)
+          
+          const { data: uploadData, error: uploadError } = await supabase
             .storage
             .from("audio")
             .upload(fileName, file, {
@@ -64,26 +87,28 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
             })
 
           if (uploadError) {
-            console.error("❌ Error al subir archivo:", uploadError)
+            console.error("❌ Error al subir archivo a Storage:", uploadError)
             setResults((prev) => ({ ...prev, error: [...prev.error, file.name] }))
             continue
           }
 
-          console.log(`✅ Archivo subido: ${fileName}`)
+          console.log("✅ Archivo subido a Storage:", uploadData)
           setProgress((prev) => ({ ...prev, [file.name]: 50 }))
 
           // ✅ 2. Obtener URL pública
+          console.log("🔊 Obteniendo URL pública...")
           const { data: urlData } = supabase
             .storage
             .from("audio")
             .getPublicUrl(fileName)
           
           const audioUrl = urlData.publicUrl
-          console.log(`🔊 URL: ${audioUrl}`)
+          console.log(`🔊 URL pública: ${audioUrl}`)
 
           setProgress((prev) => ({ ...prev, [file.name]: 70 }))
 
           // ✅ 3. Guardar en la base de datos
+          console.log("💾 Guardando en base de datos...")
           const { data: trackData, error: trackError } = await supabase
             .from("tracks")
             .insert({
@@ -100,7 +125,7 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
             continue
           }
 
-          console.log(`✅ Guardado en DB:`, trackData)
+          console.log("✅ Guardado en DB:", trackData)
           setProgress((prev) => ({ ...prev, [file.name]: 100 }))
           setResults((prev) => ({ ...prev, success: [...prev.success, file.name] }))
           
@@ -110,14 +135,19 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
         }
       }
       
+      console.log("📊 Resultados finales:", results)
       setFiles((prev) => prev.filter((f) => !results.success.includes(f.name)))
       
-      if (onUploadComplete) onUploadComplete()
+      if (onUploadComplete) {
+        console.log("🔄 Llamando onUploadComplete")
+        onUploadComplete()
+      }
       
     } catch (error) {
       console.error("❌ Error en la subida:", error)
     } finally {
       setUploading(false)
+      console.log("🏁 Subida finalizada")
     }
   }
 
