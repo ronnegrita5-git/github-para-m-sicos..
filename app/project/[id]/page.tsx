@@ -11,7 +11,6 @@ interface Track {
   id: string
   name: string
   audio_url: string
-  file_url: string
   user_id: string
   created_at: string
 }
@@ -24,9 +23,25 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true)
   const [loadingTracks, setLoadingTracks] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isPlayingAll, setIsPlayingAll] = useState(false)
-  const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(-1)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Función para cargar las pistas
+  const fetchTracks = async () => {
+    try {
+      const { data, error } = await supabase!
+        .from("tracks")
+        .select("*")
+        .eq("project_id", id)
+        .order("created_at", { ascending: false })
+
+      if (error) throw error
+      console.log("🎵 Pistas cargadas:", data)
+      setTracks(data || [])
+    } catch (error) {
+      console.error("Error cargando pistas:", error)
+    } finally {
+      setLoadingTracks(false)
+    }
+  }
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -47,114 +62,17 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       }
     }
 
-    const fetchTracks = async () => {
-      try {
-        const { data, error } = await supabase!
-          .from("tracks")
-          .select("*")
-          .eq("project_id", id)
-          .order("created_at", { ascending: false })
-
-        if (error) throw error
-        setTracks(data || [])
-      } catch (error) {
-        console.error("Error cargando pistas:", error)
-      } finally {
-        setLoadingTracks(false)
-      }
-    }
-
     if (id) {
       fetchProject()
       fetchTracks()
     }
   }, [id])
 
-  const deleteProject = async () => {
-    if (!user) return
-    if (!confirm("¿Estás seguro de que quieres eliminar este proyecto?")) return
-
-    try {
-      const { error } = await supabase!
-        .from("projects")
-        .delete()
-        .eq("id", id)
-        .eq("user_id", user.id)
-
-      if (error) throw error
-      alert("Proyecto eliminado correctamente")
-      window.location.href = "/explore"
-    } catch (error) {
-      console.error("Error eliminando proyecto:", error)
-      alert("Error al eliminar el proyecto")
-    }
-  }
-
-  const toggleVisibility = async () => {
-    if (!user) return
-    if (!confirm(`¿Cambiar el proyecto a ${project.is_public ? 'privado' : 'público'}?`)) return
-
-    try {
-      const { error } = await supabase!
-        .from("projects")
-        .update({ is_public: !project.is_public })
-        .eq("id", id)
-        .eq("user_id", user.id)
-
-      if (error) throw error
-      setProject({ ...project, is_public: !project.is_public })
-    } catch (error) {
-      console.error("Error cambiando visibilidad:", error)
-      alert("Error al cambiar la visibilidad")
-    }
-  }
-
-  // 🎵 Funciones para reproducir todas las pistas
-  const playAllTracks = () => {
-    if (tracks.length === 0) return
-    
-    const audioUrls = tracks
-      .map(t => t.audio_url || t.file_url)
-      .filter(url => url)
-    
-    if (audioUrls.length === 0) {
-      alert("No hay pistas con audio para reproducir")
-      return
-    }
-
-    setIsPlayingAll(true)
-    setCurrentTrackIndex(0)
-    
-    if (audioRef.current) {
-      audioRef.current.src = audioUrls[0]
-      audioRef.current.play()
-    }
-  }
-
-  const stopAllTracks = () => {
-    setIsPlayingAll(false)
-    setCurrentTrackIndex(-1)
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.src = ""
-    }
-  }
-
-  const onTrackEnd = () => {
-    const audioUrls = tracks
-      .map(t => t.audio_url || t.file_url)
-      .filter(url => url)
-    
-    const nextIndex = currentTrackIndex + 1
-    if (nextIndex < audioUrls.length) {
-      setCurrentTrackIndex(nextIndex)
-      if (audioRef.current) {
-        audioRef.current.src = audioUrls[nextIndex]
-        audioRef.current.play()
-      }
-    } else {
-      stopAllTracks()
-    }
+  // ✅ Función para actualizar pistas SIN recargar la página
+  const refreshTracks = async () => {
+    console.log("🔄 Actualizando pistas...")
+    setLoadingTracks(true)
+    await fetchTracks()
   }
 
   if (loading) {
@@ -175,20 +93,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   const projectDescription = typeof project.description === 'string' ? project.description : 'Sin descripción'
   const projectDate = project.created_at ? new Date(project.created_at).toLocaleDateString() : 'Fecha desconocida'
 
-  // Obtener URLs de audio para el reproductor
-  const audioUrls = tracks
-    .map(t => t.audio_url || t.file_url)
-    .filter(url => url)
-
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0a0a0a", color: "white" }}>
-      {/* Reproductor de audio oculto */}
-      <audio
-        ref={audioRef}
-        onEnded={onTrackEnd}
-        style={{ display: "none" }}
-      />
-
       <aside style={{ width: 240, padding: "24px 16px", background: "rgba(255,255,255,0.03)", borderRight: "1px solid rgba(255,255,255,0.1)" }}>
         <div style={{ padding: "0 8px 16px", fontSize: 20, fontWeight: "bold", color: "#10b981" }}>🎵 Music Collab</div>
         <Link href="/" style={{ padding: "10px 12px", borderRadius: 8, color: "#9ca3af", textDecoration: "none", display: "block" }}>🏠 Inicio</Link>
@@ -202,7 +108,21 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           <h1 style={{ fontSize: 32, margin: 0 }}>{projectName}</h1>
           {isCreator && (
             <button
-              onClick={toggleVisibility}
+              onClick={async () => {
+                if (!confirm(`¿Cambiar el proyecto a ${project.is_public ? 'privado' : 'público'}?`)) return
+                try {
+                  const { error } = await supabase!
+                    .from("projects")
+                    .update({ is_public: !project.is_public })
+                    .eq("id", id)
+                    .eq("user_id", user.id)
+                  if (error) throw error
+                  setProject({ ...project, is_public: !project.is_public })
+                } catch (error) {
+                  console.error("Error cambiando visibilidad:", error)
+                  alert("Error al cambiar la visibilidad")
+                }
+              }}
               style={{
                 padding: "6px 14px",
                 background: project.is_public ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)",
@@ -236,54 +156,21 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         <div style={{ marginTop: 32 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h2 style={{ fontSize: 24, margin: 0 }}>🎵 Pistas</h2>
-            
-            {/* 🎵 Botón de reproducción general */}
-            {audioUrls.length > 0 && (
-              <div>
-                {!isPlayingAll ? (
-                  <button
-                    onClick={playAllTracks}
-                    style={{
-                      padding: "8px 16px",
-                      background: "#10b981",
-                      color: "white",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      fontSize: 14,
-                      fontWeight: "bold"
-                    }}
-                  >
-                    ▶ Reproducir todas ({audioUrls.length})
-                  </button>
-                ) : (
-                  <button
-                    onClick={stopAllTracks}
-                    style={{
-                      padding: "8px 16px",
-                      background: "#ef4444",
-                      color: "white",
-                      border: "none",
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      fontSize: 14,
-                      fontWeight: "bold"
-                    }}
-                  >
-                    ⏹ Detener
-                  </button>
-                )}
-              </div>
-            )}
           </div>
 
           {isCreator && (
             <div style={{ marginBottom: 24 }}>
               <div style={{ marginBottom: 12 }}>
-                <MultiUpload projectId={id} onUploadComplete={() => window.location.reload()} />
+                <MultiUpload 
+                  projectId={id} 
+                  onUploadComplete={refreshTracks}  // ✅ Actualiza sin recargar
+                />
               </div>
               <div>
-                <WebRecorder projectId={id} onRecordingComplete={() => window.location.reload()} />
+                <WebRecorder 
+                  projectId={id} 
+                  onRecordingComplete={refreshTracks}  // ✅ Actualiza sin recargar
+                />
               </div>
             </div>
           )}
@@ -296,31 +183,37 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {tracks.map((track, index) => {
-                const audioUrl = track.audio_url || track.file_url
-                const isCurrentTrack = isPlayingAll && index === currentTrackIndex
-                
+              {tracks.map((track) => {
+                const audioUrl = track.audio_url
+                const hasAudio = audioUrl && audioUrl.length > 0
+
                 return (
-                  <div key={track.id} style={{ 
-                    display: "flex", 
-                    justifyContent: "space-between", 
-                    alignItems: "center", 
-                    padding: "12px 16px", 
-                    background: isCurrentTrack ? "rgba(16,185,129,0.1)" : "rgba(255,255,255,0.03)",
-                    borderRadius: 8, 
-                    border: isCurrentTrack ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(255,255,255,0.05)"
+                  <div key={track.id} style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "12px 16px",
+                    background: "rgba(255,255,255,0.03)",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.05)"
                   }}>
                     <div>
                       <p style={{ margin: 0, color: "white" }}>
-                        {isCurrentTrack && "▶ "}
                         {track.name || "Pista sin nombre"}
                       </p>
                       <span style={{ color: "#6b7280", fontSize: 12 }}>
                         {new Date(track.created_at).toLocaleDateString()}
                       </span>
+                      {!hasAudio && (
+                        <span style={{ color: "#fbbf24", fontSize: 12, marginLeft: 8 }}>
+                          ⚠️ Sin audio
+                        </span>
+                      )}
                     </div>
-                    {audioUrl && (
+                    {hasAudio ? (
                       <audio controls src={audioUrl} style={{ height: 32 }} />
+                    ) : (
+                      <span style={{ color: "#6b7280", fontSize: 12 }}>Sin audio</span>
                     )}
                   </div>
                 )
@@ -333,7 +226,22 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         {isCreator && (
           <div style={{ marginTop: 24, display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
-              onClick={deleteProject}
+              onClick={async () => {
+                if (!confirm("¿Estás seguro de que quieres eliminar este proyecto?")) return
+                try {
+                  const { error } = await supabase!
+                    .from("projects")
+                    .delete()
+                    .eq("id", id)
+                    .eq("user_id", user.id)
+                  if (error) throw error
+                  alert("Proyecto eliminado correctamente")
+                  window.location.href = "/explore"
+                } catch (error) {
+                  console.error("Error eliminando proyecto:", error)
+                  alert("Error al eliminar el proyecto")
+                }
+              }}
               style={{
                 padding: "10px 20px",
                 background: "#ef4444",
