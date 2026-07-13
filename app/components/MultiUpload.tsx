@@ -50,9 +50,10 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
     try {
       for (const file of files) {
         try {
+          console.log(`📤 Subiendo: ${file.name}`)
           setProgress((prev) => ({ ...prev, [file.name]: 10 }))
           
-          // ✅ PRIMERO: Subir archivo a Storage
+          // ✅ 1. Subir archivo a Storage
           const fileName = `${projectId}/${Date.now()}-${file.name}`
           const { error: uploadError } = await supabase
             .storage
@@ -68,31 +69,30 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
             continue
           }
 
+          console.log(`✅ Archivo subido: ${fileName}`)
           setProgress((prev) => ({ ...prev, [file.name]: 50 }))
 
-          // ✅ SEGUNDO: Obtener URL pública
+          // ✅ 2. Obtener URL pública
           const { data: urlData } = supabase
             .storage
             .from("audio")
             .getPublicUrl(fileName)
           
           const audioUrl = urlData.publicUrl
-          console.log("🔊 URL del audio:", audioUrl)
+          console.log(`🔊 URL: ${audioUrl}`)
 
           setProgress((prev) => ({ ...prev, [file.name]: 70 }))
 
-          // ✅ TERCERO: Guardar en la base de datos
-          const { error: trackError } = await supabase
+          // ✅ 3. Guardar en la base de datos
+          const { data: trackData, error: trackError } = await supabase
             .from("tracks")
             .insert({
               name: file.name.replace(/\.[^.]+$/, ""),
-              instrument: "otro",
               project_id: projectId,
               user_id: user.id,
-              audio_url: audioUrl,
-              file_url: audioUrl,
-              source: 'local'
+              audio_url: audioUrl
             })
+            .select()
 
           if (trackError) {
             console.error("❌ Error al guardar en DB:", trackError)
@@ -100,11 +100,12 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
             continue
           }
 
+          console.log(`✅ Guardado en DB:`, trackData)
           setProgress((prev) => ({ ...prev, [file.name]: 100 }))
           setResults((prev) => ({ ...prev, success: [...prev.success, file.name] }))
           
         } catch (error) {
-          console.error(`Error al procesar ${file.name}:`, error)
+          console.error(`❌ Error al procesar ${file.name}:`, error)
           setResults((prev) => ({ ...prev, error: [...prev.error, file.name] }))
         }
       }
@@ -114,7 +115,7 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
       if (onUploadComplete) onUploadComplete()
       
     } catch (error) {
-      console.error("Error en la subida:", error)
+      console.error("❌ Error en la subida:", error)
     } finally {
       setUploading(false)
     }
