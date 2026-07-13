@@ -86,6 +86,25 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     }
   }
 
+  const toggleVisibility = async () => {
+    if (!user) return
+    if (!confirm(`¿Cambiar el proyecto a ${project.is_public ? 'privado' : 'público'}?`)) return
+
+    try {
+      const { error } = await supabase!
+        .from("projects")
+        .update({ is_public: !project.is_public })
+        .eq("id", id)
+        .eq("user_id", user.id)
+
+      if (error) throw error
+      setProject({ ...project, is_public: !project.is_public })
+    } catch (error) {
+      console.error("Error cambiando visibilidad:", error)
+      alert("Error al cambiar la visibilidad")
+    }
+  }
+
   if (loading) {
     return <div style={{ padding: 40, color: "white" }}>⏳ Cargando proyecto...</div>
   }
@@ -109,18 +128,41 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       <aside style={{ width: 240, padding: "24px 16px", background: "rgba(255,255,255,0.03)", borderRight: "1px solid rgba(255,255,255,0.1)" }}>
         <div style={{ padding: "0 8px 16px", fontSize: 20, fontWeight: "bold", color: "#10b981" }}>🎵 Music Collab</div>
         <Link href="/" style={{ padding: "10px 12px", borderRadius: 8, color: "#9ca3af", textDecoration: "none", display: "block" }}>🏠 Inicio</Link>
-        <Link href="/explore" style={{ padding: "10px 12px", borderRadius: 8, color: "#9ca3af", textDecoration: "none", display: "block" }}>🔍 Explorar</Link>
+        <Link href="/explore" style={{ padding: "10px 12px", borderRadius: 8, color: "#9ca3af", textDecoration: "none", display: "block" }}>📁 Proyectos</Link>
       </aside>
 
       <main style={{ flex: 1, padding: "40px", maxWidth: "800px" }}>
-        <Link href="/explore" style={{ color: "#10b981", textDecoration: "none" }}>← Volver a explorar</Link>
+        <Link href="/explore" style={{ color: "#10b981", textDecoration: "none" }}>← Volver a proyectos</Link>
 
-        <h1 style={{ fontSize: 32, marginTop: 20 }}>{projectName}</h1>
-        <p style={{ color: "#9ca3af", fontSize: 16 }}>{projectDescription}</p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 20 }}>
+          <h1 style={{ fontSize: 32, margin: 0 }}>{projectName}</h1>
+          {isCreator && (
+            <button
+              onClick={toggleVisibility}
+              style={{
+                padding: "6px 14px",
+                background: project.is_public ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)",
+                color: project.is_public ? "#10b981" : "#ef4444",
+                border: "1px solid " + (project.is_public ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"),
+                borderRadius: 20,
+                cursor: "pointer",
+                fontSize: 13,
+                fontWeight: "bold"
+              }}
+            >
+              {project.is_public ? "🌍 Público" : "🔒 Privado"}
+            </button>
+          )}
+        </div>
+
+        <p style={{ color: "#9ca3af", fontSize: 16, marginTop: 8 }}>{projectDescription}</p>
 
         <div style={{ marginTop: 24, padding: 16, background: "rgba(255,255,255,0.05)", borderRadius: 8 }}>
           <p style={{ color: "#6b7280", fontSize: 14 }}>📅 Creado: {projectDate}</p>
           <p style={{ color: "#6b7280", fontSize: 14 }}>👤 Creador: {project.user_id}</p>
+          <p style={{ color: "#6b7280", fontSize: 14 }}>
+            {project.is_public ? "🌍 Público" : "🔒 Privado"}
+          </p>
         </div>
 
         {/* 🎵 SECCIÓN DE PISTAS */}
@@ -161,7 +203,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
         {/* 🗑️ BOTÓN DE ELIMINAR */}
         {isCreator && (
-          <div style={{ marginTop: 24, display: "flex", gap: "12px" }}>
+          <div style={{ marginTop: 24, display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
               onClick={deleteProject}
               style={{
