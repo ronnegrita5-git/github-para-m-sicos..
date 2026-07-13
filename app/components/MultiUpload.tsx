@@ -52,29 +52,10 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
         try {
           setProgress((prev) => ({ ...prev, [file.name]: 10 }))
           
-          const { data: trackData, error: trackError } = await supabase
-            .from("tracks")
-            .insert([
-              {
-                name: file.name.replace(/\.[^.]+$/, ""),
-                instrument: "otro",
-                project_id: projectId,
-                user_id: user.id,
-              },
-            ])
-            .select()
-            .single()
-
-          if (trackError) {
-            console.error("Error al crear pista:", trackError)
-            setResults((prev) => ({ ...prev, error: [...prev.error, file.name] }))
-            continue
-          }
-
-          setProgress((prev) => ({ ...prev, [file.name]: 30 }))
-
+          // ✅ PRIMERO: Subir archivo a Storage
           const fileName = `${projectId}/${Date.now()}-${file.name}`
-          const { error: uploadError } = await supabase.storage
+          const { error: uploadError } = await supabase
+            .storage
             .from("audio")
             .upload(fileName, file, {
               cacheControl: '3600',
@@ -82,29 +63,39 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
             })
 
           if (uploadError) {
-            console.error("Error al subir archivo:", uploadError)
+            console.error("❌ Error al subir archivo:", uploadError)
             setResults((prev) => ({ ...prev, error: [...prev.error, file.name] }))
             continue
           }
 
-          setProgress((prev) => ({ ...prev, [file.name]: 70 }))
+          setProgress((prev) => ({ ...prev, [file.name]: 50 }))
 
-          const { data: urlData } = supabase.storage
+          // ✅ SEGUNDO: Obtener URL pública
+          const { data: urlData } = supabase
+            .storage
             .from("audio")
             .getPublicUrl(fileName)
           
           const audioUrl = urlData.publicUrl
+          console.log("🔊 URL del audio:", audioUrl)
 
-          const { error: updateError } = await supabase
+          setProgress((prev) => ({ ...prev, [file.name]: 70 }))
+
+          // ✅ TERCERO: Guardar en la base de datos
+          const { error: trackError } = await supabase
             .from("tracks")
-            .update({ 
+            .insert({
+              name: file.name.replace(/\.[^.]+$/, ""),
+              instrument: "otro",
+              project_id: projectId,
+              user_id: user.id,
               audio_url: audioUrl,
+              file_url: audioUrl,
               source: 'local'
             })
-            .eq("id", trackData.id)
 
-          if (updateError) {
-            console.error("Error al actualizar pista:", updateError)
+          if (trackError) {
+            console.error("❌ Error al guardar en DB:", trackError)
             setResults((prev) => ({ ...prev, error: [...prev.error, file.name] }))
             continue
           }
@@ -137,7 +128,7 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
       borderRadius: 12,
       background: "#fafafa"
     }}>
-      <h4 style={{ margin: "0 0 10px 0" }}>📤 Subir múltiples archivos (como git push)</h4>
+      <h4 style={{ margin: "0 0 10px 0" }}>📤 Subir múltiples archivos</h4>
       
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <input
@@ -163,7 +154,7 @@ export default function MultiUpload({ projectId, onUploadComplete }: MultiUpload
               fontSize: 14,
             }}
           >
-            {uploading ? `Subiendo (${Object.values(progress).filter(p => p < 100).length} pendientes)` : "🚀 Subir archivos"}
+            {uploading ? "Subiendo..." : "🚀 Subir archivos"}
           </button>
         )}
       </div>
