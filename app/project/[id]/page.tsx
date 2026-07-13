@@ -4,18 +4,24 @@ import { useEffect, useState } from "react"
 import { useAuth } from "@/app/context/AuthContext"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import MultiUpload from "@/app/components/MultiUpload"
+import WebRecorder from "@/app/components/WebRecorder"
 
-interface ProjectPageProps {
-  params: {
-    id: string
-  }
+interface Track {
+  id: string
+  name: string
+  file_url: string
+  user_id: string
+  created_at: string
 }
 
-export default function ProjectPage({ params }: ProjectPageProps) {
+export default function ProjectPage({ params }: { params: { id: string } }) {
   const { id } = params
   const { user } = useAuth()
   const [project, setProject] = useState<any>(null)
+  const [tracks, setTracks] = useState<Track[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingTracks, setLoadingTracks] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -37,133 +43,142 @@ export default function ProjectPage({ params }: ProjectPageProps) {
       }
     }
 
+    const fetchTracks = async () => {
+      try {
+        const { data, error } = await supabase!
+          .from("tracks")
+          .select("*")
+          .eq("project_id", id)
+          .order("created_at", { ascending: false })
+
+        if (error) throw error
+        setTracks(data || [])
+      } catch (error) {
+        console.error("Error cargando pistas:", error)
+      } finally {
+        setLoadingTracks(false)
+      }
+    }
+
     if (id) {
       fetchProject()
+      fetchTracks()
     }
   }, [id])
 
+  const deleteProject = async () => {
+    if (!user) return
+    if (!confirm("¿Estás seguro de que quieres eliminar este proyecto?")) return
+
+    try {
+      const { error } = await supabase!
+        .from("projects")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", user.id)
+
+      if (error) throw error
+      alert("Proyecto eliminado correctamente")
+      window.location.href = "/explore"
+    } catch (error) {
+      console.error("Error eliminando proyecto:", error)
+      alert("Error al eliminar el proyecto")
+    }
+  }
+
   if (loading) {
-    return (
-      <div style={{ padding: 40, color: "white" }}>
-        ⏳ Cargando proyecto...
-      </div>
-    )
+    return <div style={{ padding: 40, color: "white" }}>⏳ Cargando proyecto...</div>
   }
 
   if (error || !project) {
     return (
       <div style={{ padding: 40, color: "white" }}>
         <p>❌ {error || "Proyecto no encontrado"}</p>
-        <Link href="/explore" style={{ color: "#10b981" }}>
-          ← Volver a explorar
-        </Link>
+        <Link href="/explore" style={{ color: "#10b981" }}>← Volver a explorar</Link>
       </div>
     )
   }
 
-  // ✅ Asegurar que todos los valores sean strings
+  const isCreator = user && user.id === project.user_id
   const projectName = typeof project.name === 'string' ? project.name : 'Proyecto sin título'
   const projectDescription = typeof project.description === 'string' ? project.description : 'Sin descripción'
   const projectDate = project.created_at ? new Date(project.created_at).toLocaleDateString() : 'Fecha desconocida'
-  const projectUserId = typeof project.user_id === 'string' ? project.user_id : 'Usuario desconocido'
 
   return (
-    <div
-      style={{
-        display: "flex",
-        minHeight: "100vh",
-        background: "#0a0a0a",
-        color: "white"
-      }}
-    >
-      <aside
-        style={{
-          width: 240,
-          padding: "24px 16px",
-          background: "rgba(255,255,255,0.03)",
-          borderRight: "1px solid rgba(255,255,255,0.1)"
-        }}
-      >
-        <div
-          style={{
-            padding: "0 8px 16px",
-            fontSize: 20,
-            fontWeight: "bold",
-            color: "#10b981"
-          }}
-        >
-          🎵 Music Collab
-        </div>
-        <Link
-          href="/"
-          style={{
-            padding: "10px 12px",
-            borderRadius: 8,
-            color: "#9ca3af",
-            textDecoration: "none",
-            display: "block"
-          }}
-        >
-          🏠 Inicio
-        </Link>
-        <Link
-          href="/explore"
-          style={{
-            padding: "10px 12px",
-            borderRadius: 8,
-            color: "#9ca3af",
-            textDecoration: "none",
-            display: "block"
-          }}
-        >
-          🔍 Explorar
-        </Link>
+    <div style={{ display: "flex", minHeight: "100vh", background: "#0a0a0a", color: "white" }}>
+      <aside style={{ width: 240, padding: "24px 16px", background: "rgba(255,255,255,0.03)", borderRight: "1px solid rgba(255,255,255,0.1)" }}>
+        <div style={{ padding: "0 8px 16px", fontSize: 20, fontWeight: "bold", color: "#10b981" }}>🎵 Music Collab</div>
+        <Link href="/" style={{ padding: "10px 12px", borderRadius: 8, color: "#9ca3af", textDecoration: "none", display: "block" }}>🏠 Inicio</Link>
+        <Link href="/explore" style={{ padding: "10px 12px", borderRadius: 8, color: "#9ca3af", textDecoration: "none", display: "block" }}>🔍 Explorar</Link>
       </aside>
 
-      <main
-        style={{
-          flex: 1,
-          padding: "40px",
-          maxWidth: "800px"
-        }}
-      >
-        <Link href="/explore" style={{ color: "#10b981", textDecoration: "none" }}>
-          ← Volver a explorar
-        </Link>
+      <main style={{ flex: 1, padding: "40px", maxWidth: "800px" }}>
+        <Link href="/explore" style={{ color: "#10b981", textDecoration: "none" }}>← Volver a explorar</Link>
 
         <h1 style={{ fontSize: 32, marginTop: 20 }}>{projectName}</h1>
+        <p style={{ color: "#9ca3af", fontSize: 16 }}>{projectDescription}</p>
 
-        <p style={{ color: "#9ca3af", fontSize: 16 }}>
-          {projectDescription}
-        </p>
-
-        <div
-          style={{
-            marginTop: 24,
-            padding: 16,
-            background: "rgba(255,255,255,0.05)",
-            borderRadius: 8
-          }}
-        >
-          <p style={{ color: "#6b7280", fontSize: 14 }}>
-            📅 Creado: {projectDate}
-          </p>
-          <p style={{ color: "#6b7280", fontSize: 14 }}>
-            👤 Creado por: {projectUserId}
-          </p>
+        <div style={{ marginTop: 24, padding: 16, background: "rgba(255,255,255,0.05)", borderRadius: 8 }}>
+          <p style={{ color: "#6b7280", fontSize: 14 }}>📅 Creado: {projectDate}</p>
+          <p style={{ color: "#6b7280", fontSize: 14 }}>👤 Creador: {project.user_id}</p>
         </div>
 
-        {user && user.id === project.user_id && (
-          <div
-            style={{
-              marginTop: 24,
-              padding: 16,
-              background: "rgba(16, 185, 129, 0.1)",
-              borderRadius: 8,
-              border: "1px solid rgba(16, 185, 129, 0.2)"
-            }}
-          >
-            <p style={{ color: "#10b981" }}>✅ Eres el creador de este proyecto</p>
+        {/* 🎵 SECCIÓN DE PISTAS */}
+        <div style={{ marginTop: 32 }}>
+          <h2 style={{ fontSize: 24, marginBottom: 16 }}>🎵 Pistas</h2>
+
+          {isCreator && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ marginBottom: 12 }}>
+                <MultiUpload projectId={id} onUploadComplete={() => window.location.reload()} />
+              </div>
+              <div>
+                <WebRecorder projectId={id} onRecordingComplete={() => window.location.reload()} />
+              </div>
+            </div>
+          )}
+
+          {loadingTracks ? (
+            <p style={{ color: "#6b7280" }}>Cargando pistas...</p>
+          ) : tracks.length === 0 ? (
+            <p style={{ color: "#6b7280" }}>
+              {isCreator ? "📭 No hay pistas aún. Sube una pista o graba audio." : "📭 Este proyecto aún no tiene pistas."}
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {tracks.map((track) => (
+                <div key={track.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", background: "rgba(255,255,255,0.03)", borderRadius: 8, border: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div>
+                    <p style={{ margin: 0, color: "white" }}>{track.name || "Pista sin nombre"}</p>
+                    <span style={{ color: "#6b7280", fontSize: 12 }}>{new Date(track.created_at).toLocaleDateString()}</span>
+                  </div>
+                  {track.file_url && <audio controls src={track.file_url} style={{ height: 32 }} />}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 🗑️ BOTÓN DE ELIMINAR */}
+        {isCreator && (
+          <div style={{ marginTop: 24, display: "flex", gap: "12px" }}>
+            <button
+              onClick={deleteProject}
+              style={{
+                padding: "10px 20px",
+                background: "#ef4444",
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                cursor: "pointer",
+                fontSize: 14
+              }}
+            >
+              🗑️ Eliminar proyecto
+            </button>
+            <span style={{ color: "#10b981", fontSize: 14, alignSelf: "center" }}>
+              ✅ Eres el creador
+            </span>
           </div>
         )}
       </main>
