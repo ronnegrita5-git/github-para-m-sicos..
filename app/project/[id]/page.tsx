@@ -23,8 +23,10 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true)
   const [loadingTracks, setLoadingTracks] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isPlayingAll, setIsPlayingAll] = useState(false)
+  const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(-1)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  // ✅ Función para cargar pistas
   const loadTracks = async () => {
     try {
       const { data, error } = await supabase!
@@ -40,6 +42,23 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       console.error("Error cargando pistas:", error)
     } finally {
       setLoadingTracks(false)
+    }
+  }
+
+  const deleteTrack = async (trackId: string) => {
+    if (!confirm("¿Estás seguro de que quieres eliminar esta pista?")) return
+
+    try {
+      const { error } = await supabase!
+        .from("tracks")
+        .delete()
+        .eq("id", trackId)
+
+      if (error) throw error
+      await loadTracks()
+    } catch (error) {
+      console.error("Error eliminando pista:", error)
+      alert("Error al eliminar la pista")
     }
   }
 
@@ -68,6 +87,54 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     }
   }, [id])
 
+  // 🎵 Funciones para reproducir todas las pistas
+  const playAllTracks = () => {
+    if (tracks.length === 0) return
+    
+    const audioUrls = tracks
+      .map(t => t.audio_url)
+      .filter(url => url && url.length > 0)
+    
+    if (audioUrls.length === 0) {
+      alert("No hay pistas con audio para reproducir")
+      return
+    }
+
+    setIsPlayingAll(true)
+    setCurrentTrackIndex(0)
+    
+    if (audioRef.current) {
+      audioRef.current.src = audioUrls[0]
+      audioRef.current.play()
+    }
+  }
+
+  const stopAllTracks = () => {
+    setIsPlayingAll(false)
+    setCurrentTrackIndex(-1)
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.src = ""
+    }
+  }
+
+  const onTrackEnd = () => {
+    const audioUrls = tracks
+      .map(t => t.audio_url)
+      .filter(url => url && url.length > 0)
+    
+    const nextIndex = currentTrackIndex + 1
+    if (nextIndex < audioUrls.length) {
+      setCurrentTrackIndex(nextIndex)
+      if (audioRef.current) {
+        audioRef.current.src = audioUrls[nextIndex]
+        audioRef.current.play()
+      }
+    } else {
+      stopAllTracks()
+    }
+  }
+
   if (loading) {
     return <div style={{ padding: 40, color: "white" }}>⏳ Cargando proyecto...</div>
   }
@@ -86,8 +153,22 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   const projectDescription = typeof project.description === 'string' ? project.description : 'Sin descripción'
   const projectDate = project.created_at ? new Date(project.created_at).toLocaleDateString() : 'Fecha desconocida'
 
+  const audioUrls = tracks
+    .map(t => t.audio_url)
+    .filter(url => url && url.length > 0)
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#0a0a0a", color: "white" }}>
+      <audio
+        ref={audioRef}
+        onEnded={onTrackEnd}
+        onError={() => {
+          console.error("Error en audio, pasando al siguiente...")
+          onTrackEnd()
+        }}
+        style={{ display: "none" }}
+      />
+
       <aside style={{ width: 240, padding: "24px 16px", background: "rgba(255,255,255,0.03)", borderRight: "1px solid rgba(255,255,255,0.1)" }}>
         <div style={{ padding: "0 8px 16px", fontSize: 20, fontWeight: "bold", color: "#10b981" }}>🎵 Music Collab</div>
         <Link href="/" style={{ padding: "10px 12px", borderRadius: 8, color: "#9ca3af", textDecoration: "none", display: "block" }}>🏠 Inicio</Link>
@@ -149,6 +230,44 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         <div style={{ marginTop: 32 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <h2 style={{ fontSize: 24, margin: 0 }}>🎵 Pistas</h2>
+            
+            {audioUrls.length > 0 && (
+              <div>
+                {!isPlayingAll ? (
+                  <button
+                    onClick={playAllTracks}
+                    style={{
+                      padding: "8px 16px",
+                      background: "#10b981",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      fontSize: 14,
+                      fontWeight: "bold"
+                    }}
+                  >
+                    ▶ Reproducir todas ({audioUrls.length})
+                  </button>
+                ) : (
+                  <button
+                    onClick={stopAllTracks}
+                    style={{
+                      padding: "8px 16px",
+                      background: "#ef4444",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      fontSize: 14,
+                      fontWeight: "bold"
+                    }}
+                  >
+                    ⏹ Detener
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {isCreator && (
@@ -182,9 +301,10 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             </p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {tracks.map((track) => {
+              {tracks.map((track, index) => {
                 const audioUrl = track.audio_url
                 const hasAudio = audioUrl && audioUrl.length > 0
+                const isCurrentTrack = isPlayingAll && index === currentTrackIndex
 
                 return (
                   <div key={track.id} style={{
@@ -192,28 +312,42 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                     justifyContent: "space-between",
                     alignItems: "center",
                     padding: "12px 16px",
-                    background: "rgba(255,255,255,0.03)",
+                    background: isCurrentTrack ? "rgba(16,185,129,0.1)" : "rgba(255,255,255,0.03)",
                     borderRadius: 8,
-                    border: "1px solid rgba(255,255,255,0.05)"
+                    border: isCurrentTrack ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(255,255,255,0.05)"
                   }}>
                     <div>
                       <p style={{ margin: 0, color: "white" }}>
+                        {isCurrentTrack && "▶ "}
                         {track.name || "Pista sin nombre"}
                       </p>
                       <span style={{ color: "#6b7280", fontSize: 12 }}>
                         {new Date(track.created_at).toLocaleDateString()}
                       </span>
-                      {!hasAudio && (
-                        <span style={{ color: "#fbbf24", fontSize: 12, marginLeft: 8 }}>
-                          ⚠️ Sin audio
-                        </span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      {hasAudio ? (
+                        <audio controls src={audioUrl} style={{ height: 32 }} />
+                      ) : (
+                        <span style={{ color: "#6b7280", fontSize: 12 }}>Sin audio</span>
+                      )}
+                      {isCreator && (
+                        <button
+                          onClick={() => deleteTrack(track.id)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "#ef4444",
+                            cursor: "pointer",
+                            fontSize: 18,
+                            padding: "0 4px"
+                          }}
+                          title="Eliminar pista"
+                        >
+                          🗑️
+                        </button>
                       )}
                     </div>
-                    {hasAudio ? (
-                      <audio controls src={audioUrl} style={{ height: 32 }} />
-                    ) : (
-                      <span style={{ color: "#6b7280", fontSize: 12 }}>Sin audio</span>
-                    )}
                   </div>
                 )
               })}
@@ -221,7 +355,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           )}
         </div>
 
-        {/* 🗑️ BOTÓN DE ELIMINAR */}
+        {/* 🗑️ BOTÓN DE ELIMINAR PROYECTO */}
         {isCreator && (
           <div style={{ marginTop: 24, display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
