@@ -59,6 +59,9 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       if (error) throw error
       await loadTracks()
       setSelectedTracks(new Set())
+      setIsPlaying(false)
+      setCurrentTrackIndex(-1)
+      setAudioUrl("")
     } catch (error) {
       console.error("Error eliminando pista:", error)
       alert("Error al eliminar la pista")
@@ -90,6 +93,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     }
   }, [id])
 
+  // 🎵 Seleccionar/Deseleccionar pista Y REPRODUCIR AUTOMÁTICAMENTE
   const toggleTrackSelection = (trackId: string) => {
     setSelectedTracks(prev => {
       const newSet = new Set(prev)
@@ -100,13 +104,21 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       }
       return newSet
     })
-    // Resetear reproducción al cambiar selección
-    setIsPlaying(false)
-    setCurrentTrackIndex(-1)
-    setAudioUrl("")
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.src = ""
+
+    // ✅ Si hay pistas seleccionadas, reproducir automáticamente
+    const selected = tracks.filter(t => selectedTracks.has(t.id) && t.audio_url)
+    if (selected.length > 0) {
+      // Si la pista seleccionada no está en la lista de reproducción, reiniciar
+      const firstSelected = selected[0]
+      if (firstSelected) {
+        setCurrentTrackIndex(0)
+        setIsPlaying(true)
+        setAudioUrl(firstSelected.audio_url)
+        if (audioRef.current) {
+          audioRef.current.src = firstSelected.audio_url
+          audioRef.current.play()
+        }
+      }
     }
   }
 
@@ -114,6 +126,17 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     const audioTracks = tracks.filter(t => t.audio_url && t.audio_url.length > 0)
     const allIds = new Set(audioTracks.map(t => t.id))
     setSelectedTracks(allIds)
+    
+    // ✅ Reproducir automáticamente al seleccionar todas
+    if (audioTracks.length > 0) {
+      setCurrentTrackIndex(0)
+      setIsPlaying(true)
+      setAudioUrl(audioTracks[0].audio_url)
+      if (audioRef.current) {
+        audioRef.current.src = audioTracks[0].audio_url
+        audioRef.current.play()
+      }
+    }
   }
 
   const deselectAllTracks = () => {
@@ -127,22 +150,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     }
   }
 
-  // 🎵 Auto-reproducir cuando se selecciona la primera pista
-  const playSelectedTracks = () => {
-    const selected = tracks.filter(t => selectedTracks.has(t.id) && t.audio_url)
-    if (selected.length === 0) {
-      alert("No hay pistas seleccionadas con audio")
-      return
-    }
-    
-    setCurrentTrackIndex(0)
-    setIsPlaying(true)
-    setAudioUrl(selected[0].audio_url)
-    if (audioRef.current) {
-      audioRef.current.src = selected[0].audio_url
-      audioRef.current.play()
-    }
-  }
+  // 🎵 Eliminamos el botón "Reproducir todas" - esta función ya no se usa
+  // Solo mantenemos la lógica de reproducción automática
 
   const playNextTrack = () => {
     const selected = tracks.filter(t => selectedTracks.has(t.id) && t.audio_url)
@@ -279,23 +288,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
               >
                 Deseleccionar
               </button>
-              {selectedCount > 0 && (
-                <button
-                  onClick={playSelectedTracks}
-                  style={{
-                    padding: "4px 16px",
-                    background: "#10b981",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 4,
-                    cursor: "pointer",
-                    fontSize: 12,
-                    fontWeight: "bold"
-                  }}
-                >
-                  ▶ Reproducir ({selectedCount})
-                </button>
-              )}
             </div>
           </div>
 
