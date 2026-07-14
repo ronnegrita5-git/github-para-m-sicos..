@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react"
 import { useAuth } from "@/app/context/AuthContext"
 import Link from "next/link"
-import { supabase, supabasePublic } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase"
 import MultiUpload from "@/app/components/MultiUpload"
 import WebRecorder from "@/app/components/WebRecorder"
 
@@ -31,8 +31,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
   const loadTracks = async () => {
     try {
-      // ✅ Usar cliente anónimo para lectura pública
-      const { data, error } = await supabasePublic
+      // ✅ Usar supabase normal (RLS debe permitir SELECT público)
+      const { data, error } = await supabase
         .from("tracks")
         .select("*")
         .eq("project_id", id)
@@ -56,7 +56,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     if (!confirm("¿Estás seguro de que quieres eliminar esta pista?")) return
 
     try {
-      const { error } = await supabase!
+      const { error } = await supabase
         .from("tracks")
         .delete()
         .eq("id", trackId)
@@ -76,8 +76,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchProject = async () => {
       try {
-        // ✅ Usar cliente anónimo para lectura pública
-        const { data, error } = await supabasePublic
+        // ✅ Usar supabase normal
+        const { data, error } = await supabase
           .from("projects")
           .select("*")
           .eq("id", id)
@@ -230,7 +230,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
               onClick={async () => {
                 if (!confirm(`¿Cambiar el proyecto a ${project.is_public ? 'privado' : 'público'}?`)) return
                 try {
-                  const { error } = await supabase!
+                  const { error } = await supabase
                     .from("projects")
                     .update({ is_public: !project.is_public })
                     .eq("id", id)
@@ -503,7 +503,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
               onClick={async () => {
                 if (!confirm("¿Estás seguro de que quieres eliminar este proyecto?")) return
                 try {
-                  const { error } = await supabase!
+                  const { error } = await supabase
                     .from("projects")
                     .delete()
                     .eq("id", id)
