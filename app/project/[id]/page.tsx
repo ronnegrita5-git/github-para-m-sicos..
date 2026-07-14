@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react"
 import { useAuth } from "@/app/context/AuthContext"
 import Link from "next/link"
-import { supabase } from "@/lib/supabase"
+import { supabase, supabasePublic } from "@/lib/supabase"
 import MultiUpload from "@/app/components/MultiUpload"
 import WebRecorder from "@/app/components/WebRecorder"
 
@@ -27,12 +27,12 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(-1)
   const [audioUrl, setAudioUrl] = useState<string>("")
   const [isPlaying, setIsPlaying] = useState(false)
-  const [isShuffling, setIsShuffling] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const loadTracks = async () => {
     try {
-      const { data, error } = await supabase!
+      // ✅ Usar cliente anónimo para lectura pública
+      const { data, error } = await supabasePublic
         .from("tracks")
         .select("*")
         .eq("project_id", id)
@@ -76,7 +76,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   useEffect(() => {
     const fetchProject = async () => {
       try {
-        const { data, error } = await supabase!
+        // ✅ Usar cliente anónimo para lectura pública
+        const { data, error } = await supabasePublic
           .from("projects")
           .select("*")
           .eq("id", id)
@@ -129,29 +130,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   }
 
   // 🎵 Reproducir una pista individual
-  const playSingleTrack = (trackUrl: string, trackName: string) => {
-    // Si hay pistas seleccionadas, no interrumpir
-    if (selectedTracks.size > 0) {
-      // Buscar si la pista está seleccionada
-      const track = tracks.find(t => t.audio_url === trackUrl)
-      if (track && selectedTracks.has(track.id)) {
-        // Si está seleccionada, reproducir la lista desde esa posición
-        const selected = tracks.filter(t => selectedTracks.has(t.id) && t.audio_url)
-        const index = selected.findIndex(t => t.id === track.id)
-        if (index >= 0) {
-          setCurrentTrackIndex(index)
-          setIsPlaying(true)
-          setAudioUrl(trackUrl)
-          if (audioRef.current) {
-            audioRef.current.src = trackUrl
-            audioRef.current.play()
-          }
-          return
-        }
-      }
-    }
-
-    // Si no, reproducir individual
+  const playSingleTrack = (trackUrl: string) => {
     setCurrentTrackIndex(-1)
     setIsPlaying(true)
     setAudioUrl(trackUrl)
@@ -168,7 +147,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     const allIds = new Set(audioTracks.map(t => t.id))
     setSelectedTracks(allIds)
     
-    // Reproducir automáticamente la primera
     if (audioTracks.length > 0) {
       setCurrentTrackIndex(0)
       setIsPlaying(true)
@@ -191,39 +169,24 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     }
   }
 
-  const toggleShuffle = () => {
-    setIsShuffling(!isShuffling)
-  }
-
   const playNextTrack = () => {
     const selected = tracks.filter(t => selectedTracks.has(t.id) && t.audio_url)
-    
-    if (selected.length === 0) {
+    const nextIndex = currentTrackIndex + 1
+    if (nextIndex < selected.length) {
+      setCurrentTrackIndex(nextIndex)
+      setAudioUrl(selected[nextIndex].audio_url)
+      if (audioRef.current) {
+        audioRef.current.src = selected[nextIndex].audio_url
+        audioRef.current.play()
+      }
+    } else {
       setIsPlaying(false)
       setCurrentTrackIndex(-1)
       setAudioUrl("")
-      return
-    }
-
-    let nextIndex
-    if (isShuffling) {
-      // Seleccionar aleatoriamente, evitando la misma pista
-      do {
-        nextIndex = Math.floor(Math.random() * selected.length)
-      } while (nextIndex === currentTrackIndex && selected.length > 1)
-    } else {
-      nextIndex = currentTrackIndex + 1
-      if (nextIndex >= selected.length) {
-        // Si es la última, volver a la primera (modo loop)
-        nextIndex = 0
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current.src = ""
       }
-    }
-
-    setCurrentTrackIndex(nextIndex)
-    setAudioUrl(selected[nextIndex].audio_url)
-    if (audioRef.current) {
-      audioRef.current.src = selected[nextIndex].audio_url
-      audioRef.current.play()
     }
   }
 
@@ -312,7 +275,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         <div style={{ marginTop: 32 }}>
           <h2 style={{ fontSize: 24, marginBottom: 16 }}>🎵 Pistas</h2>
 
-          {/* 🔒 Opciones de selección SOLO para usuarios logueados */}
           {user && (
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: 16 }}>
               <button
@@ -344,37 +306,21 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 Deseleccionar
               </button>
               {selectedCount > 0 && (
-                <>
-                  <button
-                    onClick={playSelectedTracks}
-                    style={{
-                      padding: "4px 16px",
-                      background: "#10b981",
-                      color: "white",
-                      border: "none",
-                      borderRadius: 4,
-                      cursor: "pointer",
-                      fontSize: 12,
-                      fontWeight: "bold"
-                    }}
-                  >
-                    ▶ Reproducir ({selectedCount})
-                  </button>
-                  <button
-                    onClick={toggleShuffle}
-                    style={{
-                      padding: "4px 12px",
-                      background: isShuffling ? "rgba(16,185,129,0.2)" : "rgba(255,255,255,0.1)",
-                      color: isShuffling ? "#10b981" : "#9ca3af",
-                      border: isShuffling ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(255,255,255,0.1)",
-                      borderRadius: 4,
-                      cursor: "pointer",
-                      fontSize: 12
-                    }}
-                  >
-                    🔀 {isShuffling ? "Aleatorio ON" : "Aleatorio OFF"}
-                  </button>
-                </>
+                <button
+                  onClick={playSelectedTracks}
+                  style={{
+                    padding: "4px 16px",
+                    background: "#10b981",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 4,
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: "bold"
+                  }}
+                >
+                  ▶ Reproducir ({selectedCount})
+                </button>
               )}
               <span style={{ color: "#6b7280", fontSize: 12, alignSelf: "center" }}>
                 {selectedCount} pistas seleccionadas
@@ -382,7 +328,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             </div>
           )}
 
-          {/* 📤 Subir pistas - SOLO para el creador */}
           {isCreator && (
             <div style={{ marginBottom: 24 }}>
               <div style={{ marginBottom: 12 }}>
@@ -437,7 +382,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                       if (hasAudio && user) {
                         toggleTrackSelection(track.id)
                       } else if (hasAudio && !user) {
-                        playSingleTrack(audioUrl, track.name)
+                        playSingleTrack(audioUrl)
                       }
                     }}>
                       <div>
@@ -492,7 +437,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 })}
               </div>
 
-              {/* 🎵 REPRODUCTOR DE AUDIO - visible para todos */}
               {audioUrl && isPlaying && (
                 <div style={{
                   marginTop: 20,
@@ -514,13 +458,17 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                     ref={audioRef}
                     controls
                     src={audioUrl}
-                    onEnded={playNextTrack}
+                    onEnded={currentTrackIndex >= 0 ? playNextTrack : () => {
+                      setIsPlaying(false)
+                      setAudioUrl("")
+                    }}
                     style={{ flex: 1, minWidth: 200, height: "40px" }}
                   />
-                  <span style={{ color: "#6b7280", fontSize: 12, minWidth: 50 }}>
-                    {selectedCount > 0 && isPlaying && currentTrackIndex >= 0 ? 
-                      `${currentTrackIndex + 1}/${selectedCount}` : ""}
-                  </span>
+                  {selectedCount > 0 && isPlaying && currentTrackIndex >= 0 && (
+                    <span style={{ color: "#6b7280", fontSize: 12, minWidth: 50 }}>
+                      {`${currentTrackIndex + 1}/${selectedCount}`}
+                    </span>
+                  )}
                   <button
                     onClick={() => {
                       setIsPlaying(false)
@@ -549,7 +497,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
           )}
         </div>
 
-        {/* 🗑️ BOTÓN DE ELIMINAR PROYECTO */}
         {isCreator && (
           <div style={{ marginTop: 24, display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
