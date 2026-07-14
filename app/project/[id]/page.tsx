@@ -27,6 +27,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   const [currentTrackIndex, setCurrentTrackIndex] = useState<number>(-1)
   const [audioUrl, setAudioUrl] = useState<string>("")
   const [isPlaying, setIsPlaying] = useState(false)
+  const [isShuffling, setIsShuffling] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const loadTracks = async () => {
@@ -48,6 +49,10 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
   }
 
   const deleteTrack = async (trackId: string) => {
+    if (!user) {
+      alert("Debes iniciar sesión para eliminar pistas")
+      return
+    }
     if (!confirm("¿Estás seguro de que quieres eliminar esta pista?")) return
 
     try {
@@ -95,7 +100,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
   // 🎵 Seleccionar/Deseleccionar pista
   const toggleTrackSelection = (trackId: string) => {
-    // Primero actualizamos la selección
+    if (!user) return
+
     const newSelected = new Set(selectedTracks)
     if (newSelected.has(trackId)) {
       newSelected.delete(trackId)
@@ -103,33 +109,66 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
       newSelected.add(trackId)
     }
     setSelectedTracks(newSelected)
+  }
 
-    // Luego reproducimos si hay pistas seleccionadas
-    const selected = tracks.filter(t => newSelected.has(t.id) && t.audio_url)
-    if (selected.length > 0) {
-      setCurrentTrackIndex(0)
-      setIsPlaying(true)
-      setAudioUrl(selected[0].audio_url)
-      if (audioRef.current) {
-        audioRef.current.src = selected[0].audio_url
-        audioRef.current.play()
+  // 🎵 Reproducir pistas seleccionadas
+  const playSelectedTracks = () => {
+    const selected = tracks.filter(t => selectedTracks.has(t.id) && t.audio_url)
+    if (selected.length === 0) {
+      alert("No hay pistas seleccionadas con audio")
+      return
+    }
+
+    setCurrentTrackIndex(0)
+    setIsPlaying(true)
+    setAudioUrl(selected[0].audio_url)
+    if (audioRef.current) {
+      audioRef.current.src = selected[0].audio_url
+      audioRef.current.play()
+    }
+  }
+
+  // 🎵 Reproducir una pista individual
+  const playSingleTrack = (trackUrl: string, trackName: string) => {
+    // Si hay pistas seleccionadas, no interrumpir
+    if (selectedTracks.size > 0) {
+      // Buscar si la pista está seleccionada
+      const track = tracks.find(t => t.audio_url === trackUrl)
+      if (track && selectedTracks.has(track.id)) {
+        // Si está seleccionada, reproducir la lista desde esa posición
+        const selected = tracks.filter(t => selectedTracks.has(t.id) && t.audio_url)
+        const index = selected.findIndex(t => t.id === track.id)
+        if (index >= 0) {
+          setCurrentTrackIndex(index)
+          setIsPlaying(true)
+          setAudioUrl(trackUrl)
+          if (audioRef.current) {
+            audioRef.current.src = trackUrl
+            audioRef.current.play()
+          }
+          return
+        }
       }
-    } else {
-      setIsPlaying(false)
-      setCurrentTrackIndex(-1)
-      setAudioUrl("")
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.src = ""
-      }
+    }
+
+    // Si no, reproducir individual
+    setCurrentTrackIndex(-1)
+    setIsPlaying(true)
+    setAudioUrl(trackUrl)
+    if (audioRef.current) {
+      audioRef.current.src = trackUrl
+      audioRef.current.play()
     }
   }
 
   const selectAllTracks = () => {
+    if (!user) return
+
     const audioTracks = tracks.filter(t => t.audio_url && t.audio_url.length > 0)
     const allIds = new Set(audioTracks.map(t => t.id))
     setSelectedTracks(allIds)
     
+    // Reproducir automáticamente la primera
     if (audioTracks.length > 0) {
       setCurrentTrackIndex(0)
       setIsPlaying(true)
@@ -152,24 +191,39 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     }
   }
 
+  const toggleShuffle = () => {
+    setIsShuffling(!isShuffling)
+  }
+
   const playNextTrack = () => {
     const selected = tracks.filter(t => selectedTracks.has(t.id) && t.audio_url)
-    const nextIndex = currentTrackIndex + 1
-    if (nextIndex < selected.length) {
-      setCurrentTrackIndex(nextIndex)
-      setAudioUrl(selected[nextIndex].audio_url)
-      if (audioRef.current) {
-        audioRef.current.src = selected[nextIndex].audio_url
-        audioRef.current.play()
-      }
-    } else {
+    
+    if (selected.length === 0) {
       setIsPlaying(false)
       setCurrentTrackIndex(-1)
       setAudioUrl("")
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current.src = ""
+      return
+    }
+
+    let nextIndex
+    if (isShuffling) {
+      // Seleccionar aleatoriamente, evitando la misma pista
+      do {
+        nextIndex = Math.floor(Math.random() * selected.length)
+      } while (nextIndex === currentTrackIndex && selected.length > 1)
+    } else {
+      nextIndex = currentTrackIndex + 1
+      if (nextIndex >= selected.length) {
+        // Si es la última, volver a la primera (modo loop)
+        nextIndex = 0
       }
+    }
+
+    setCurrentTrackIndex(nextIndex)
+    setAudioUrl(selected[nextIndex].audio_url)
+    if (audioRef.current) {
+      audioRef.current.src = selected[nextIndex].audio_url
+      audioRef.current.play()
     }
   }
 
@@ -250,15 +304,17 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
             {project.is_public ? "🌍 Público" : "🔒 Privado"}
           </p>
           <p style={{ color: "#6b7280", fontSize: 14 }}>
-            🎵 Pistas: {tracks.length} ({selectedCount} seleccionadas)
+            🎵 Pistas: {tracks.length}
           </p>
         </div>
 
-        {/* 🎵 SECCIÓN DE PISTAS */}
+        {/* 🎵 SECCIÓN DE PISTAS - VISIBLE PARA TODOS */}
         <div style={{ marginTop: 32 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h2 style={{ fontSize: 24, margin: 0 }}>🎵 Pistas</h2>
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <h2 style={{ fontSize: 24, marginBottom: 16 }}>🎵 Pistas</h2>
+
+          {/* 🔒 Opciones de selección SOLO para usuarios logueados */}
+          {user && (
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: 16 }}>
               <button
                 onClick={selectAllTracks}
                 style={{
@@ -287,9 +343,46 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
               >
                 Deseleccionar
               </button>
+              {selectedCount > 0 && (
+                <>
+                  <button
+                    onClick={playSelectedTracks}
+                    style={{
+                      padding: "4px 16px",
+                      background: "#10b981",
+                      color: "white",
+                      border: "none",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      fontSize: 12,
+                      fontWeight: "bold"
+                    }}
+                  >
+                    ▶ Reproducir ({selectedCount})
+                  </button>
+                  <button
+                    onClick={toggleShuffle}
+                    style={{
+                      padding: "4px 12px",
+                      background: isShuffling ? "rgba(16,185,129,0.2)" : "rgba(255,255,255,0.1)",
+                      color: isShuffling ? "#10b981" : "#9ca3af",
+                      border: isShuffling ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      fontSize: 12
+                    }}
+                  >
+                    🔀 {isShuffling ? "Aleatorio ON" : "Aleatorio OFF"}
+                  </button>
+                </>
+              )}
+              <span style={{ color: "#6b7280", fontSize: 12, alignSelf: "center" }}>
+                {selectedCount} pistas seleccionadas
+              </span>
             </div>
-          </div>
+          )}
 
+          {/* 📤 Subir pistas - SOLO para el creador */}
           {isCreator && (
             <div style={{ marginBottom: 24 }}>
               <div style={{ marginBottom: 12 }}>
@@ -341,14 +434,17 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                       opacity: hasAudio ? 1 : 0.5
                     }}
                     onClick={() => {
-                      if (hasAudio) {
+                      if (hasAudio && user) {
                         toggleTrackSelection(track.id)
+                      } else if (hasAudio && !user) {
+                        playSingleTrack(audioUrl, track.name)
                       }
                     }}>
                       <div>
                         <p style={{ margin: 0, color: "white" }}>
-                          {isSelected && "☑ "}
-                          {!isSelected && hasAudio && "☐ "}
+                          {user && isSelected && "☑ "}
+                          {user && !isSelected && hasAudio && "☐ "}
+                          {!user && "▶ "}
                           {!hasAudio && "⛔ "}
                           {track.name || "Pista sin nombre"}
                         </p>
@@ -357,13 +453,16 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                         </span>
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        {hasAudio && isSelected && (
+                        {hasAudio && isSelected && user && (
                           <span style={{ color: "#10b981", fontSize: 12 }}>
                             {isCurrentTrack ? "🔊 Reproduciendo" : "✓ Seleccionada"}
                           </span>
                         )}
-                        {hasAudio && !isSelected && (
+                        {hasAudio && !isSelected && user && (
                           <span style={{ color: "#6b7280", fontSize: 12 }}>🎵</span>
+                        )}
+                        {hasAudio && !user && (
+                          <span style={{ color: "#10b981", fontSize: 12 }}>▶ Reproducir</span>
                         )}
                         {!hasAudio && (
                           <span style={{ color: "#6b7280", fontSize: 12 }}>Sin audio</span>
@@ -393,8 +492,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 })}
               </div>
 
-              {/* 🎵 REPRODUCTOR DE AUDIO JUSTO DEBAJO DE LAS PISTAS */}
-              {selectedAudioTracks.length > 0 && (
+              {/* 🎵 REPRODUCTOR DE AUDIO - visible para todos */}
+              {audioUrl && isPlaying && (
                 <div style={{
                   marginTop: 20,
                   padding: "12px 16px",
@@ -409,7 +508,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                   <span style={{ color: "#6b7280", fontSize: 13, minWidth: 100 }}>
                     {currentTrackIndex >= 0 && isPlaying ? 
                       selectedAudioTracks[currentTrackIndex]?.name || "Reproduciendo" : 
-                      `${selectedCount} pistas seleccionadas`}
+                      tracks.find(t => t.audio_url === audioUrl)?.name || "Reproduciendo"}
                   </span>
                   <audio
                     ref={audioRef}
@@ -419,32 +518,31 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                     style={{ flex: 1, minWidth: 200, height: "40px" }}
                   />
                   <span style={{ color: "#6b7280", fontSize: 12, minWidth: 50 }}>
-                    {selectedCount > 0 && isPlaying ? `${currentTrackIndex + 1}/${selectedCount}` : ""}
+                    {selectedCount > 0 && isPlaying && currentTrackIndex >= 0 ? 
+                      `${currentTrackIndex + 1}/${selectedCount}` : ""}
                   </span>
-                  {isPlaying && (
-                    <button
-                      onClick={() => {
-                        setIsPlaying(false)
-                        setCurrentTrackIndex(-1)
-                        setAudioUrl("")
-                        if (audioRef.current) {
-                          audioRef.current.pause()
-                          audioRef.current.src = ""
-                        }
-                      }}
-                      style={{
-                        padding: "4px 12px",
-                        background: "rgba(239,68,68,0.15)",
-                        color: "#ef4444",
-                        border: "1px solid rgba(239,68,68,0.3)",
-                        borderRadius: 4,
-                        cursor: "pointer",
-                        fontSize: 12
-                      }}
-                    >
-                      Detener
-                    </button>
-                  )}
+                  <button
+                    onClick={() => {
+                      setIsPlaying(false)
+                      setAudioUrl("")
+                      setCurrentTrackIndex(-1)
+                      if (audioRef.current) {
+                        audioRef.current.pause()
+                        audioRef.current.src = ""
+                      }
+                    }}
+                    style={{
+                      padding: "4px 12px",
+                      background: "rgba(239,68,68,0.15)",
+                      color: "#ef4444",
+                      border: "1px solid rgba(239,68,68,0.3)",
+                      borderRadius: 4,
+                      cursor: "pointer",
+                      fontSize: 12
+                    }}
+                  >
+                    Detener
+                  </button>
                 </div>
               )}
             </>
