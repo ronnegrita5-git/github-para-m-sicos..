@@ -1,0 +1,752 @@
+"use client"
+
+import { useAuth } from "../context/AuthContext"
+import { useState, useEffect } from "react"
+import { supabase } from "@/lib/supabase"
+import Link from "next/link"
+
+interface Instrument {
+  id: string
+  name: string
+  category: string
+}
+
+export default function ProfilePage() {
+  const { user, loading } = useAuth()
+  const [firstName, setFirstName] = useState("")
+  const [lastName, setLastName] = useState("")
+  const [city, setCity] = useState("")
+  const [country, setCountry] = useState("")
+  const [instrumentId, setInstrumentId] = useState("")
+  const [musicGenre, setMusicGenre] = useState("")
+  const [bio, setBio] = useState("")
+  const [skillLevel, setSkillLevel] = useState("")
+  const [yearsExperience, setYearsExperience] = useState<number | "">("")
+  const [availability, setAvailability] = useState("")
+  const [instruments, setInstruments] = useState<Instrument[]>([])
+  const [loadingInstruments, setLoadingInstruments] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const [messageType, setMessageType] = useState<"success" | "error" | null>(null)
+
+  // Cambio de contraseña
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmNewPassword, setConfirmNewPassword] = useState("")
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null)
+  const [passwordLoading, setPasswordLoading] = useState(false)
+
+  // Cargar instrumentos
+  useEffect(() => {
+    const fetchInstruments = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("instruments")
+          .select("id, name, category")
+          .order("name", { ascending: true })
+
+        if (error) throw error
+        setInstruments(data || [])
+      } catch (error) {
+        console.error("Error cargando instrumentos:", error)
+      } finally {
+        setLoadingInstruments(false)
+      }
+    }
+
+    fetchInstruments()
+  }, [])
+
+  // Cargar datos del usuario
+  useEffect(() => {
+    if (user) {
+      const loadUserData = async () => {
+        try {
+          const { data, error } = await supabase
+            .from("users")
+            .select("*")
+            .eq("id", user.id)
+            .single()
+
+          if (error) throw error
+
+          if (data) {
+            setFirstName(data.first_name || "")
+            setLastName(data.last_name || "")
+            setCity(data.city || "")
+            setCountry(data.country || "")
+            setInstrumentId(data.instrument_id || "")
+            setMusicGenre(data.music_genre || "")
+            setBio(data.bio || "")
+            setSkillLevel(data.skill_level || "")
+            setYearsExperience(data.years_experience || "")
+            setAvailability(data.availability || "")
+          }
+        } catch (error) {
+          console.error("Error cargando perfil:", error)
+        }
+      }
+
+      loadUserData()
+    }
+  }, [user])
+
+  // Guardar perfil
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user) return
+
+    setSaving(true)
+    setMessage(null)
+
+    try {
+      const { error } = await supabase
+        .from("users")
+        .update({
+          first_name: firstName || null,
+          last_name: lastName || null,
+          city: city || null,
+          country: country || null,
+          instrument_id: instrumentId || null,
+          music_genre: musicGenre || null,
+          bio: bio || null,
+          skill_level: skillLevel || null,
+          years_experience: yearsExperience || null,
+          availability: availability || null,
+        })
+        .eq("id", user.id)
+
+      if (error) throw error
+
+      setMessage("✅ Perfil actualizado correctamente")
+      setMessageType("success")
+      
+      // Actualizar localStorage
+      const { data: updatedUser } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", user.id)
+        .single()
+
+      if (updatedUser) {
+        const userData = {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          first_name: updatedUser.first_name || "",
+          last_name: updatedUser.last_name || "",
+          city: updatedUser.city || "",
+          country: updatedUser.country || "",
+          instrument_id: updatedUser.instrument_id || "",
+          music_genre: updatedUser.music_genre || "",
+          bio: updatedUser.bio || "",
+          avatar_url: updatedUser.avatar_url || "",
+          created_at: updatedUser.created_at,
+        }
+        localStorage.setItem('user', JSON.stringify(userData))
+      }
+
+    } catch (error) {
+      console.error("Error guardando perfil:", error)
+      setMessage("❌ Error al guardar el perfil")
+      setMessageType("error")
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Cambiar contraseña
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError(null)
+    setPasswordSuccess(null)
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError("❌ Las contraseñas no coinciden")
+      return
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError("❌ La contraseña debe tener al menos 6 caracteres")
+      return
+    }
+
+    setPasswordLoading(true)
+
+    try {
+      // Verificar contraseña actual
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || "",
+        password: currentPassword,
+      })
+
+      if (signInError) {
+        setPasswordError("❌ Contraseña actual incorrecta")
+        setPasswordLoading(false)
+        return
+      }
+
+      // Cambiar contraseña
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      })
+
+      if (error) throw error
+
+      setPasswordSuccess("✅ Contraseña actualizada correctamente")
+      setCurrentPassword("")
+      setNewPassword("")
+      setConfirmNewPassword("")
+      
+      setTimeout(() => {
+        setShowPasswordModal(false)
+        setPasswordSuccess(null)
+      }, 2000)
+
+    } catch (error) {
+      console.error("Error cambiando contraseña:", error)
+      setPasswordError("❌ Error al cambiar la contraseña")
+    } finally {
+      setPasswordLoading(false)
+    }
+  }
+
+  if (loading) {
+    return <div style={{ color: "white", padding: 40 }}>Cargando...</div>
+  }
+
+  if (!user) {
+    return (
+      <div style={{ padding: 40, color: "white" }}>
+        <p>🔒 Debes iniciar sesión para ver tu perfil</p>
+        <Link href="/login" style={{ color: "#10b981" }}>Iniciar sesión</Link>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{
+      display: "flex",
+      minHeight: "100vh",
+      background: "#0a0a0a",
+      color: "white"
+    }}>
+      <aside style={{
+        width: 240,
+        padding: "24px 16px",
+        background: "rgba(255,255,255,0.03)",
+        borderRight: "1px solid rgba(255,255,255,0.1)"
+      }}>
+        <div style={{ padding: "0 8px 16px", fontSize: 20, fontWeight: "bold", color: "#10b981" }}>
+          🎵 Music Collab
+        </div>
+        <Link href="/" style={{ padding: "10px 12px", borderRadius: 8, color: "#9ca3af", textDecoration: "none", display: "block" }}>🏠 Inicio</Link>
+        <Link href="/explore" style={{ padding: "10px 12px", borderRadius: 8, color: "#9ca3af", textDecoration: "none", display: "block" }}>📁 Proyectos</Link>
+        <Link href="/profile" style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(16,185,129,0.1)", color: "#10b981", textDecoration: "none", display: "block" }}>👤 Mi perfil</Link>
+      </aside>
+
+      <main style={{ flex: 1, padding: "40px", maxWidth: "800px" }}>
+        <h1 style={{ fontSize: 32, marginBottom: 8 }}>👤 Mi perfil</h1>
+        <p style={{ color: "#6b7280", marginBottom: 24 }}>
+          Completa y actualiza tu perfil musical
+        </p>
+
+        {message && (
+          <div style={{
+            padding: 12,
+            marginBottom: 16,
+            background: messageType === "success" ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)",
+            color: messageType === "success" ? "#10b981" : "#ef4444",
+            borderRadius: 8,
+            fontSize: 14
+          }}>
+            {message}
+          </div>
+        )}
+
+        <form onSubmit={handleSave}>
+          <div style={{ marginBottom: 16, textAlign: "left" }}>
+            <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+              Correo electrónico
+            </label>
+            <input
+              type="email"
+              value={user?.email || ""}
+              disabled
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1px solid #333",
+                background: "rgba(255,255,255,0.03)",
+                color: "#6b7280",
+                fontSize: 16,
+                cursor: "not-allowed"
+              }}
+            />
+            <span style={{ color: "#6b7280", fontSize: 12 }}>No se puede cambiar el email</span>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div style={{ marginBottom: 16, textAlign: "left" }}>
+              <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+                Nombre
+              </label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Tu nombre"
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #333",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "white",
+                  fontSize: 16
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 16, textAlign: "left" }}>
+              <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+                Apellidos
+              </label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Tus apellidos"
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #333",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "white",
+                  fontSize: 16
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div style={{ marginBottom: 16, textAlign: "left" }}>
+              <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+                Población
+              </label>
+              <input
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Tu ciudad"
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #333",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "white",
+                  fontSize: 16
+                }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 16, textAlign: "left" }}>
+              <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+                País
+              </label>
+              <input
+                type="text"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                placeholder="Tu país"
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #333",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "white",
+                  fontSize: 16
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div style={{ marginBottom: 16, textAlign: "left" }}>
+              <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+                Instrumento que tocas
+              </label>
+              <select
+                value={instrumentId}
+                onChange={(e) => setInstrumentId(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #333",
+                  background: "#1a1a1a",
+                  color: "white",
+                  fontSize: 16
+                }}
+              >
+                <option value="">Selecciona un instrumento</option>
+                {loadingInstruments ? (
+                  <option disabled>Cargando instrumentos...</option>
+                ) : (
+                  instruments.map((inst) => (
+                    <option key={inst.id} value={inst.id}>
+                      {inst.name} {inst.category ? `(${inst.category})` : ""}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 16, textAlign: "left" }}>
+              <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+                Género musical
+              </label>
+              <select
+                value={musicGenre}
+                onChange={(e) => setMusicGenre(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #333",
+                  background: "#1a1a1a",
+                  color: "white",
+                  fontSize: 16
+                }}
+              >
+                <option value="">Selecciona un género</option>
+                <option value="banda">🎺 Banda</option>
+                <option value="cuerda">🎻 Música de cuerda</option>
+                <option value="pop-rock">🎸 Pop-Rock</option>
+                <option value="clasica">🎼 Clásica</option>
+                <option value="jazz">🎷 Jazz</option>
+                <option value="electronica">🪩 Electrónica</option>
+                <option value="folk">🪕 Folk</option>
+                <option value="otro">🎵 Otro</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div style={{ marginBottom: 16, textAlign: "left" }}>
+              <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+                Nivel
+              </label>
+              <select
+                value={skillLevel}
+                onChange={(e) => setSkillLevel(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #333",
+                  background: "#1a1a1a",
+                  color: "white",
+                  fontSize: 16
+                }}
+              >
+                <option value="">Selecciona tu nivel</option>
+                <option value="principiante">🎵 Principiante</option>
+                <option value="intermedio">🎵 Intermedio</option>
+                <option value="avanzado">🎵 Avanzado</option>
+                <option value="profesional">🎵 Profesional</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 16, textAlign: "left" }}>
+              <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+                Años de experiencia
+              </label>
+              <input
+                type="number"
+                value={yearsExperience}
+                onChange={(e) => setYearsExperience(e.target.value ? parseInt(e.target.value) : "")}
+                placeholder="Años"
+                min="0"
+                max="99"
+                style={{
+                  width: "100%",
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  border: "1px solid #333",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "white",
+                  fontSize: 16
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: 16, textAlign: "left" }}>
+            <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+              Disponibilidad
+            </label>
+            <select
+              value={availability}
+              onChange={(e) => setAvailability(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1px solid #333",
+                background: "#1a1a1a",
+                color: "white",
+                fontSize: 16
+              }}
+            >
+              <option value="">Selecciona tu disponibilidad</option>
+              <option value="disponible">✅ Disponible para colaborar</option>
+              <option value="ocasional">🔄 Ocasionalmente</option>
+              <option value="no disponible">❌ No disponible</option>
+            </select>
+          </div>
+
+          <div style={{ marginBottom: 24, textAlign: "left" }}>
+            <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+              Biografía
+            </label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={4}
+              placeholder="Cuéntanos sobre ti, tu experiencia musical, proyectos, etc."
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1px solid #333",
+                background: "rgba(255,255,255,0.05)",
+                color: "white",
+                fontSize: 16,
+                resize: "vertical"
+              }}
+            />
+          </div>
+
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: 16 }}>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                padding: "12px 32px",
+                background: saving ? "#444" : "#10b981",
+                color: "white",
+                border: "none",
+                borderRadius: 8,
+                fontSize: 16,
+                fontWeight: "bold",
+                cursor: saving ? "not-allowed" : "pointer"
+              }}
+            >
+              {saving ? "Guardando..." : "💾 Guardar perfil"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowPasswordModal(true)}
+              style={{
+                padding: "12px 32px",
+                background: "rgba(16,185,129,0.15)",
+                color: "#10b981",
+                border: "1px solid rgba(16,185,129,0.3)",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontSize: 16
+              }}
+            >
+              🔑 Cambiar contraseña
+            </button>
+            <Link
+              href="/explore"
+              style={{
+                padding: "12px 32px",
+                background: "rgba(255,255,255,0.05)",
+                color: "white",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 8,
+                textDecoration: "none",
+                fontSize: 16
+              }}
+            >
+              Volver a proyectos
+            </Link>
+          </div>
+        </form>
+      </main>
+
+      {/* Modal de cambio de contraseña */}
+      {showPasswordModal && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.8)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          padding: "20px"
+        }}>
+          <div style={{
+            maxWidth: 400,
+            width: "100%",
+            padding: 40,
+            borderRadius: 16,
+            background: "#1a1a1a",
+            border: "1px solid #333",
+            textAlign: "center"
+          }}>
+            <h2 style={{ marginBottom: 8 }}>🔑 Cambiar contraseña</h2>
+            <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 20 }}>
+              Introduce tu contraseña actual y la nueva contraseña
+            </p>
+
+            {passwordError && (
+              <div style={{
+                padding: 10,
+                marginBottom: 16,
+                background: "rgba(239,68,68,0.1)",
+                color: "#ef4444",
+                borderRadius: 8,
+                fontSize: 14
+              }}>
+                {passwordError}
+              </div>
+            )}
+
+            {passwordSuccess && (
+              <div style={{
+                padding: 10,
+                marginBottom: 16,
+                background: "rgba(16,185,129,0.1)",
+                color: "#10b981",
+                borderRadius: 8,
+                fontSize: 14
+              }}>
+                {passwordSuccess}
+              </div>
+            )}
+
+            <form onSubmit={handlePasswordChange}>
+              <div style={{ marginBottom: 16, textAlign: "left" }}>
+                <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+                  Contraseña actual
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: 8,
+                    border: "1px solid #333",
+                    background: "rgba(255,255,255,0.05)",
+                    color: "white",
+                    fontSize: 16
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16, textAlign: "left" }}>
+                <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+                  Nueva contraseña
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: 8,
+                    border: "1px solid #333",
+                    background: "rgba(255,255,255,0.05)",
+                    color: "white",
+                    fontSize: 16
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 24, textAlign: "left" }}>
+                <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
+                  Confirmar nueva contraseña
+                </label>
+                <input
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  required
+                  style={{
+                    width: "100%",
+                    padding: "10px 14px",
+                    borderRadius: 8,
+                    border: "1px solid #333",
+                    background: "rgba(255,255,255,0.05)",
+                    color: "white",
+                    fontSize: 16
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: "12px" }}>
+                <button
+                  type="submit"
+                  disabled={passwordLoading}
+                  style={{
+                    flex: 1,
+                    padding: "12px",
+                    background: passwordLoading ? "#444" : "#10b981",
+                    color: "white",
+                    border: "none",
+                    borderRadius: 8,
+                    fontSize: 16,
+                    fontWeight: "bold",
+                    cursor: passwordLoading ? "not-allowed" : "pointer"
+                  }}
+                >
+                  {passwordLoading ? "Actualizando..." : "Actualizar contraseña"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordModal(false)
+                    setPasswordError(null)
+                    setPasswordSuccess(null)
+                    setCurrentPassword("")
+                    setNewPassword("")
+                    setConfirmNewPassword("")
+                  }}
+                  style={{
+                    padding: "12px 24px",
+                    background: "rgba(255,255,255,0.05)",
+                    color: "white",
+                    border: "1px solid #333",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    fontSize: 16
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
