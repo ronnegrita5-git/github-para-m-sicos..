@@ -29,16 +29,6 @@ export default function ProfilePage() {
   const [message, setMessage] = useState<string | null>(null)
   const [messageType, setMessageType] = useState<"success" | "error" | null>(null)
 
-  // Cambio de contraseña
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmNewPassword, setConfirmNewPassword] = useState("")
-  const [passwordError, setPasswordError] = useState<string | null>(null)
-  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null)
-  const [passwordLoading, setPasswordLoading] = useState(false)
-
-  // Cargar instrumentos
   useEffect(() => {
     const fetchInstruments = async () => {
       try {
@@ -59,7 +49,6 @@ export default function ProfilePage() {
     fetchInstruments()
   }, [])
 
-  // Cargar datos del usuario
   useEffect(() => {
     if (user) {
       const loadUserData = async () => {
@@ -93,7 +82,6 @@ export default function ProfilePage() {
     }
   }, [user])
 
-  // Guardar perfil
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
@@ -123,7 +111,6 @@ export default function ProfilePage() {
       setMessage("✅ Perfil actualizado correctamente")
       setMessageType("success")
       
-      // Actualizar localStorage
       const { data: updatedUser } = await supabase
         .from("users")
         .select("*")
@@ -153,62 +140,6 @@ export default function ProfilePage() {
       setMessageType("error")
     } finally {
       setSaving(false)
-    }
-  }
-
-  // Cambiar contraseña
-  const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setPasswordError(null)
-    setPasswordSuccess(null)
-
-    if (newPassword !== confirmNewPassword) {
-      setPasswordError("❌ Las contraseñas no coinciden")
-      return
-    }
-
-    if (newPassword.length < 6) {
-      setPasswordError("❌ La contraseña debe tener al menos 6 caracteres")
-      return
-    }
-
-    setPasswordLoading(true)
-
-    try {
-      // Verificar contraseña actual
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user?.email || "",
-        password: currentPassword,
-      })
-
-      if (signInError) {
-        setPasswordError("❌ Contraseña actual incorrecta")
-        setPasswordLoading(false)
-        return
-      }
-
-      // Cambiar contraseña
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      })
-
-      if (error) throw error
-
-      setPasswordSuccess("✅ Contraseña actualizada correctamente")
-      setCurrentPassword("")
-      setNewPassword("")
-      setConfirmNewPassword("")
-      
-      setTimeout(() => {
-        setShowPasswordModal(false)
-        setPasswordSuccess(null)
-      }, 2000)
-
-    } catch (error) {
-      console.error("Error cambiando contraseña:", error)
-      setPasswordError("❌ Error al cambiar la contraseña")
-    } finally {
-      setPasswordLoading(false)
     }
   }
 
@@ -533,7 +464,7 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: 16 }}>
+          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
               type="submit"
               disabled={saving}
@@ -549,21 +480,6 @@ export default function ProfilePage() {
               }}
             >
               {saving ? "Guardando..." : "💾 Guardar perfil"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowPasswordModal(true)}
-              style={{
-                padding: "12px 32px",
-                background: "rgba(16,185,129,0.15)",
-                color: "#10b981",
-                border: "1px solid rgba(16,185,129,0.3)",
-                borderRadius: 8,
-                cursor: "pointer",
-                fontSize: 16
-              }}
-            >
-              🔑 Cambiar contraseña
             </button>
             <Link
               href="/explore"
@@ -582,171 +498,6 @@ export default function ProfilePage() {
           </div>
         </form>
       </main>
-
-      {/* Modal de cambio de contraseña */}
-      {showPasswordModal && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "rgba(0,0,0,0.8)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1000,
-          padding: "20px"
-        }}>
-          <div style={{
-            maxWidth: 400,
-            width: "100%",
-            padding: 40,
-            borderRadius: 16,
-            background: "#1a1a1a",
-            border: "1px solid #333",
-            textAlign: "center"
-          }}>
-            <h2 style={{ marginBottom: 8 }}>🔑 Cambiar contraseña</h2>
-            <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 20 }}>
-              Introduce tu contraseña actual y la nueva contraseña
-            </p>
-
-            {passwordError && (
-              <div style={{
-                padding: 10,
-                marginBottom: 16,
-                background: "rgba(239,68,68,0.1)",
-                color: "#ef4444",
-                borderRadius: 8,
-                fontSize: 14
-              }}>
-                {passwordError}
-              </div>
-            )}
-
-            {passwordSuccess && (
-              <div style={{
-                padding: 10,
-                marginBottom: 16,
-                background: "rgba(16,185,129,0.1)",
-                color: "#10b981",
-                borderRadius: 8,
-                fontSize: 14
-              }}>
-                {passwordSuccess}
-              </div>
-            )}
-
-            <form onSubmit={handlePasswordChange}>
-              <div style={{ marginBottom: 16, textAlign: "left" }}>
-                <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
-                  Contraseña actual
-                </label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "10px 14px",
-                    borderRadius: 8,
-                    border: "1px solid #333",
-                    background: "rgba(255,255,255,0.05)",
-                    color: "white",
-                    fontSize: 16
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: 16, textAlign: "left" }}>
-                <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
-                  Nueva contraseña
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "10px 14px",
-                    borderRadius: 8,
-                    border: "1px solid #333",
-                    background: "rgba(255,255,255,0.05)",
-                    color: "white",
-                    fontSize: 16
-                  }}
-                />
-              </div>
-
-              <div style={{ marginBottom: 24, textAlign: "left" }}>
-                <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
-                  Confirmar nueva contraseña
-                </label>
-                <input
-                  type="password"
-                  value={confirmNewPassword}
-                  onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "10px 14px",
-                    borderRadius: 8,
-                    border: "1px solid #333",
-                    background: "rgba(255,255,255,0.05)",
-                    color: "white",
-                    fontSize: 16
-                  }}
-                />
-              </div>
-
-              <div style={{ display: "flex", gap: "12px" }}>
-                <button
-                  type="submit"
-                  disabled={passwordLoading}
-                  style={{
-                    flex: 1,
-                    padding: "12px",
-                    background: passwordLoading ? "#444" : "#10b981",
-                    color: "white",
-                    border: "none",
-                    borderRadius: 8,
-                    fontSize: 16,
-                    fontWeight: "bold",
-                    cursor: passwordLoading ? "not-allowed" : "pointer"
-                  }}
-                >
-                  {passwordLoading ? "Actualizando..." : "Actualizar contraseña"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowPasswordModal(false)
-                    setPasswordError(null)
-                    setPasswordSuccess(null)
-                    setCurrentPassword("")
-                    setNewPassword("")
-                    setConfirmNewPassword("")
-                  }}
-                  style={{
-                    padding: "12px 24px",
-                    background: "rgba(255,255,255,0.05)",
-                    color: "white",
-                    border: "1px solid #333",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                    fontSize: 16
-                  }}
-                >
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
