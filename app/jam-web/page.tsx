@@ -3,15 +3,7 @@
 import { useEffect, useState, useRef } from "react"
 import { useAuth } from "../context/AuthContext"
 import Link from "next/link"
-
-// Configuración de WebRTC
-const PEER_CONFIG = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-  ]
-}
+import { supabase } from "@/lib/supabase"
 
 interface Message {
   id: string
@@ -23,7 +15,6 @@ interface Message {
 interface Participant {
   id: string
   name: string
-  stream: MediaStream | null
   isMuted: boolean
   isVideoEnabled: boolean
 }
@@ -36,26 +27,36 @@ export default function JamWebPage() {
   const [inputMessage, setInputMessage] = useState("")
   const [participants, setParticipants] = useState<Participant[]>([])
   const [isMuted, setIsMuted] = useState(false)
-  const [isVideoEnabled, setIsVideoEnabled] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
   const [isCameraOn, setIsCameraOn] = useState(false)
   const [myName, setMyName] = useState("")
   const [isNameSet, setIsNameSet] = useState(false)
+  const [isConnected, setIsConnected] = useState(false)
+  const [peerCount, setPeerCount] = useState(0)
+  const [audioTest, setAudioTest] = useState<string>("")
   
   const localStreamRef = useRef<MediaStream | null>(null)
   const peerConnectionsRef = useRef<Map<string, RTCPeerConnection>>(new Map())
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const recordedChunksRef = useRef<Blob[]>([])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const videoRefs = useRef<Map<string, HTMLVideoElement>>(new Map())
+  const channelRef = useRef<any>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
 
   // Generar ID de sala
   const generateRoomId = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase()
   }
 
-  // Configurar nombre
+  const PEER_CONFIG = {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+    ]
+  }
+
   const setUsername = () => {
     if (myName.trim()) {
       setIsNameSet(true)
@@ -63,59 +64,148 @@ export default function JamWebPage() {
     }
   }
 
-  const createRoom = async () => {
-    const newRoomId = generateRoomId()
-    setRoomId(newRoomId)
-    await startLocalMedia()
-    setIsInRoom(true)
-    setParticipants([{ 
-      id: user?.id || 'local', 
-      name: myName || user?.email || 'Anónimo',
-      stream: localStreamRef.current,
-      isMuted: false,
-      isVideoEnabled: isCameraOn
-    }])
-    addMessage("Sistema", `🎵 Sala ${newRoomId} creada. ¡Comparte este código!`)
+  // 🎵 TEST: Escuchar el audio local en el navegador
+  const testLocalAudio = () => {
+    if (localStreamRef.current) {
+      try {
+        // Crear un contexto de audio para monitorizar
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+        audioContextRef.current = audioContext
+        
+        const source = audioContext.createMediaStreamSource(localStreamRef.current)
+        const analyser = audioContext.createAnalyser()
+        source.connect(analyser)
+        
+        // Conectar a la salida para escuchar
+        source.connect(audioContext.destination)
+        
+        setAudioTest("✅ Escuchando tu micrófono en el navegador")
+        addMessage("Sistema", "🔊 Monitorización de audio activada. ¡Habla para probar!")
+        
+        console.log('🎤 Monitorización de audio activada')
+      } catch (error) {
+        console.error('Error en monitorización:', error)
+        setAudioTest("❌ Error al monitorizar audio")
+      }
+    } else {
+      setAudioTest("❌ No hay stream de audio")
+    }
   }
 
-  const joinRoom = async () => {
-    if (!roomId.trim()) return
-    await startLocalMedia()
-    setIsInRoom(true)
-    setParticipants([{ 
-      id: user?.id || 'local', 
-      name: myName || user?.email || 'Anónimo',
-      stream: localStreamRef.current,
-      isMuted: false,
-      isVideoEnabled: isCameraOn
-    }])
-    addMessage("Sistema", `🎵 Te has unido a la sala ${roomId}`)
-  }
-
-  const startLocalMedia = async () => {
+  // 🎵 Iniciar audio
+  const startLocalStream = async () => {
     try {
       const constraints: MediaStreamConstraints = {
-        audio: true,
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        },
         video: isCameraOn
       }
       
+      console.log('🎤 Solicitando micrófono...')
       const stream = await navigator.mediaDevices.getUserMedia(constraints)
       localStreamRef.current = stream
+      console.log('✅ Micrófono obtenido:', stream.getAudioTracks().length)
       
       const localVideo = document.getElementById('localVideo') as HTMLVideoElement
       if (localVideo) {
         localVideo.srcObject = stream
+        console.log('📹 Video local conectado')
       }
       
-      addMessage("Sistema", "🎤 Micrófono activado")
+      setIsConnected(true)
+      addMessage("Sistema", "🎤 Micrófono conectado")
+      
+      // Activar monitorización automática
+      setTimeout(() => {
+        testLocalAudio()
+      }, 500)
+      
       if (isCameraOn) {
         addMessage("Sistema", "📹 Cámara activada")
       }
       
     } catch (error) {
-      console.error("Error al acceder al micrófono:", error)
-      addMessage("Sistema", "❌ No se pudo acceder al micrófono")
+      console.error('Error al acceder al micrófono:', error)
+      setAudioTest("❌ Error: " + error.message)
+      addMessage("Sistema", "❌ No se pudo acceder al micrófono. Permite el acceso en tu navegador.")
     }
+  }
+
+  const createRoom = async () => {
+    const newRoomId = generateRoomId()
+    setRoomId(newRoomId)
+    await startLocalStream()
+    setIsInRoom(true)
+    setParticipants([{ 
+      id: user?.id || 'local', 
+      name: myName || user?.email || 'Anónimo',
+      isMuted: false,
+      isVideoEnabled: isCameraOn
+    }])
+    addMessage("Sistema", `🎵 Sala ${newRoomId} creada. ¡Comparte el código!`)
+    subscribeToRoom(newRoomId)
+  }
+
+  const joinRoom = async () => {
+    if (!roomId.trim()) return
+    await startLocalStream()
+    setIsInRoom(true)
+    setParticipants([{ 
+      id: user?.id || 'local', 
+      name: myName || user?.email || 'Anónimo',
+      isMuted: false,
+      isVideoEnabled: isCameraOn
+    }])
+    addMessage("Sistema", `🎵 Te has unido a la sala ${roomId}`)
+    subscribeToRoom(roomId)
+  }
+
+  const subscribeToRoom = (roomId: string) => {
+    if (channelRef.current) {
+      channelRef.current.unsubscribe()
+    }
+
+    const channel = supabase.channel(`jam:${roomId}`)
+    channelRef.current = channel
+
+    channel
+      .on('broadcast', { event: 'offer' }, ({ payload }) => {
+        console.log('📥 Oferta recibida:', payload)
+      })
+      .on('broadcast', { event: 'answer' }, ({ payload }) => {
+        console.log('📥 Respuesta recibida:', payload)
+      })
+      .on('broadcast', { event: 'ice-candidate' }, ({ payload }) => {
+        console.log('📥 ICE candidate recibido:', payload)
+      })
+      .on('broadcast', { event: 'user-joined' }, ({ payload }) => {
+        addMessage("Sistema", `👤 ${payload.name} se ha unido`)
+        setParticipants(prev => {
+          if (!prev.find(p => p.id === payload.id)) {
+            return [...prev, { id: payload.id, name: payload.name, isMuted: false, isVideoEnabled: false }]
+          }
+          return prev
+        })
+        setPeerCount(prev => prev + 1)
+      })
+      .on('broadcast', { event: 'user-left' }, ({ payload }) => {
+        addMessage("Sistema", `👤 ${payload.name} ha salido`)
+        setParticipants(prev => prev.filter(p => p.id !== payload.id))
+        setPeerCount(prev => Math.max(0, prev - 1))
+      })
+      .subscribe((status) => {
+        console.log('🔊 Canal de señalización:', status)
+        if (status === 'SUBSCRIBED') {
+          channel.send({
+            type: 'broadcast',
+            event: 'user-joined',
+            payload: { id: user?.id || 'local', name: myName || 'Anónimo' }
+          })
+        }
+      })
   }
 
   const toggleMute = () => {
@@ -143,13 +233,7 @@ export default function JamWebPage() {
           localStreamRef.current.addTrack(videoTrack)
           setIsCameraOn(true)
           addMessage("Sistema", "📹 Cámara activada")
-          
-          const localVideo = document.getElementById('localVideo') as HTMLVideoElement
-          if (localVideo) {
-            localVideo.srcObject = localStreamRef.current
-          }
         } catch (error) {
-          console.error("Error al activar la cámara:", error)
           addMessage("Sistema", "❌ No se pudo activar la cámara")
         }
       }
@@ -225,12 +309,27 @@ export default function JamWebPage() {
   }
 
   const leaveRoom = () => {
+    if (channelRef.current) {
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'user-left',
+        payload: { id: user?.id, name: myName || 'Anónimo' }
+      })
+      channelRef.current.unsubscribe()
+      channelRef.current = null
+    }
+    
     peerConnectionsRef.current.forEach((pc) => pc.close())
     peerConnectionsRef.current.clear()
     
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop())
       localStreamRef.current = null
+    }
+    
+    if (audioContextRef.current) {
+      audioContextRef.current.close()
+      audioContextRef.current = null
     }
     
     if (timerRef.current) {
@@ -246,32 +345,9 @@ export default function JamWebPage() {
     setRecordingTime(0)
     setIsMuted(false)
     setIsCameraOn(false)
-  }
-
-  const addFakeParticipant = () => {
-    if (participants.length >= 5) {
-      addMessage("Sistema", "⚠️ Sala completa (máximo 5 participantes)")
-      return
-    }
-    
-    const fakeNames = ["🎸 Guitarra", "🥁 Batería", "🎹 Piano", "🎤 Vocalista", "🎻 Violín"]
-    const usedNames = participants.map(p => p.name)
-    const available = fakeNames.filter(n => !usedNames.includes(n))
-    
-    if (available.length === 0) {
-      addMessage("Sistema", "⚠️ No hay más músicos disponibles")
-      return
-    }
-    
-    const randomName = available[Math.floor(Math.random() * available.length)]
-    setParticipants(prev => [...prev, {
-      id: `fake-${Date.now()}`,
-      name: randomName,
-      stream: null,
-      isMuted: false,
-      isVideoEnabled: false
-    }])
-    addMessage("Sistema", `👤 ${randomName} se ha unido a la sala`)
+    setIsConnected(false)
+    setPeerCount(0)
+    setAudioTest("")
   }
 
   if (!user) {
@@ -305,7 +381,7 @@ export default function JamWebPage() {
           <h1 style={{ fontSize: 48, marginBottom: 8 }}>🎵</h1>
           <h2 style={{ marginBottom: 24 }}>Jam Session Web</h2>
           <p style={{ color: "#6b7280", marginBottom: 20 }}>
-            Introduce tu nombre para continuar
+            Introduce tu nombre para empezar
           </p>
           <input
             type="text"
@@ -394,7 +470,7 @@ export default function JamWebPage() {
               type="text"
               value={roomId}
               onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-              placeholder="Código de sala (ej: A1B2C3)"
+              placeholder="Código de sala"
               style={{
                 flex: 1,
                 padding: "10px 14px",
@@ -432,222 +508,187 @@ export default function JamWebPage() {
   }
 
   return (
-    <div style={{
-      display: "flex",
-      minHeight: "100vh",
-      background: "#0a0a0a",
-      color: "white"
-    }}>
-      <aside style={{
-        width: 240,
-        padding: "24px 16px",
+    <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
+      {/* Cabecera */}
+      <div style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 16,
+        padding: "12px 16px",
         background: "rgba(255,255,255,0.03)",
-        borderRight: "1px solid rgba(255,255,255,0.1)"
+        borderRadius: 8,
+        border: "1px solid rgba(255,255,255,0.1)",
+        flexWrap: "wrap",
+        gap: 8
       }}>
-        <div style={{ padding: "0 8px 16px", fontSize: 20, fontWeight: "bold", color: "#10b981" }}>
-          🎵 Music Collab
-        </div>
-        <Link href="/" style={{ padding: "10px 12px", borderRadius: 8, color: "#9ca3af", textDecoration: "none", display: "block" }}>🏠 Inicio</Link>
-        <Link href="/explore" style={{ padding: "10px 12px", borderRadius: 8, color: "#9ca3af", textDecoration: "none", display: "block" }}>📁 Proyectos</Link>
-        <Link href="/jam-web" style={{ padding: "10px 12px", borderRadius: 8, background: "rgba(16,185,129,0.1)", color: "#10b981", textDecoration: "none", display: "block" }}>🎵 Jam Web</Link>
-      </aside>
-
-      <main style={{ flex: 1, padding: "20px", maxWidth: "1200px" }}>
-        {/* Cabecera */}
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 16,
-          padding: "12px 16px",
-          background: "rgba(255,255,255,0.03)",
-          borderRadius: 8,
-          border: "1px solid rgba(255,255,255,0.1)",
-          flexWrap: "wrap",
-          gap: 8
-        }}>
-          <div>
-            <span style={{ color: "#10b981", fontWeight: "bold" }}>🎵 Sala: {roomId}</span>
-            <span style={{ color: "#6b7280", marginLeft: 12 }}>
-              👥 {participants.length}/5 participantes
+        <div>
+          <span style={{ color: "#10b981", fontWeight: "bold" }}>🎵 Sala: {roomId}</span>
+          <span style={{ color: "#6b7280", marginLeft: 12 }}>
+            👥 {participants.length}/5
+          </span>
+          {isRecording && (
+            <span style={{ color: "#ef4444", marginLeft: 12 }}>
+              🔴 {formatTime(recordingTime)}
             </span>
-            {isRecording && (
-              <span style={{ color: "#ef4444", marginLeft: 12 }}>
-                🔴 Grabando {formatTime(recordingTime)}
-              </span>
-            )}
-          </div>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            <button
-              onClick={toggleMute}
-              style={{
-                padding: "6px 14px",
-                background: isMuted ? "#ef4444" : "#10b981",
-                color: "white",
-                border: "none",
-                borderRadius: 6,
-                cursor: "pointer",
-                fontSize: 13
-              }}
-            >
-              {isMuted ? "🔇 Desmutear" : "🎤 Mutear"}
-            </button>
-            <button
-              onClick={toggleCamera}
-              style={{
-                padding: "6px 14px",
-                background: isCameraOn ? "#10b981" : "#6b7280",
-                color: "white",
-                border: "none",
-                borderRadius: 6,
-                cursor: "pointer",
-                fontSize: 13
-              }}
-            >
-              {isCameraOn ? "📹 Cámara ON" : "📹 Cámara OFF"}
-            </button>
-            {!isRecording ? (
-              <button
-                onClick={startRecording}
-                style={{
-                  padding: "6px 14px",
-                  background: "#ef4444",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontSize: 13
-                }}
-              >
-                🔴 Grabar
-              </button>
-            ) : (
-              <button
-                onClick={stopRecording}
-                style={{
-                  padding: "6px 14px",
-                  background: "#6b7280",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontSize: 13
-                }}
-              >
-                ⏹ Detener
-              </button>
-            )}
-            <button
-              onClick={addFakeParticipant}
-              disabled={participants.length >= 5}
-              style={{
-                padding: "6px 14px",
-                background: participants.length < 5 ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.05)",
-                color: participants.length < 5 ? "#10b981" : "#6b7280",
-                border: "1px solid rgba(16,185,129,0.3)",
-                borderRadius: 6,
-                cursor: participants.length < 5 ? "pointer" : "not-allowed",
-                fontSize: 13
-              }}
-            >
-              ➕ Invitar
-            </button>
-            <button
-              onClick={leaveRoom}
-              style={{
-                padding: "6px 14px",
-                background: "rgba(239,68,68,0.15)",
-                color: "#ef4444",
-                border: "1px solid rgba(239,68,68,0.3)",
-                borderRadius: 6,
-                cursor: "pointer",
-                fontSize: 13
-              }}
-            >
-              Salir
-            </button>
-          </div>
+          )}
+          {audioTest && (
+            <span style={{ color: audioTest.includes("✅") ? "#10b981" : "#ef4444", marginLeft: 12, fontSize: 12 }}>
+              {audioTest}
+            </span>
+          )}
         </div>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <button
+            onClick={toggleMute}
+            style={{
+              padding: "6px 14px",
+              background: isMuted ? "#ef4444" : "#10b981",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontSize: 13
+            }}
+          >
+            {isMuted ? "🔇 Desmutear" : "🎤 Mutear"}
+          </button>
+          <button
+            onClick={toggleCamera}
+            style={{
+              padding: "6px 14px",
+              background: isCameraOn ? "#10b981" : "#6b7280",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontSize: 13
+            }}
+          >
+            {isCameraOn ? "📹 Cámara ON" : "📹 Cámara OFF"}
+          </button>
+          {!isRecording ? (
+            <button
+              onClick={startRecording}
+              style={{
+                padding: "6px 14px",
+                background: "#ef4444",
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                cursor: "pointer",
+                fontSize: 13
+              }}
+            >
+              🔴 Grabar
+            </button>
+          ) : (
+            <button
+              onClick={stopRecording}
+              style={{
+                padding: "6px 14px",
+                background: "#6b7280",
+                color: "white",
+                border: "none",
+                borderRadius: 6,
+                cursor: "pointer",
+                fontSize: 13
+              }}
+            >
+              ⏹ Detener
+            </button>
+          )}
+          <button
+            onClick={leaveRoom}
+            style={{
+              padding: "6px 14px",
+              background: "rgba(239,68,68,0.15)",
+              color: "#ef4444",
+              border: "1px solid rgba(239,68,68,0.3)",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontSize: 13
+            }}
+          >
+            Salir
+          </button>
+        </div>
+      </div>
 
-        {/* Videos */}
+      {/* Video local */}
+      <div style={{
+        marginBottom: 16,
+        background: "rgba(255,255,255,0.03)",
+        borderRadius: 8,
+        overflow: "hidden",
+        border: "1px solid rgba(255,255,255,0.05)",
+        aspectRatio: "16/9",
+        position: "relative"
+      }}>
+        <video
+          id="localVideo"
+          autoPlay
+          playsInline
+          muted
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            background: "#111"
+          }}
+        />
+        <div style={{
+          position: "absolute",
+          bottom: 8,
+          left: 8,
+          background: "rgba(0,0,0,0.7)",
+          padding: "4px 12px",
+          borderRadius: 12,
+          fontSize: 12,
+          color: "white"
+        }}>
+          {myName} {isMuted ? "🔇" : "🎤"} {isCameraOn ? "📹" : ""}
+        </div>
+        <div style={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          background: "rgba(0,0,0,0.7)",
+          padding: "4px 12px",
+          borderRadius: 12,
+          fontSize: 11,
+          color: audioTest?.includes("✅") ? "#10b981" : "#6b7280"
+        }}>
+          {audioTest || "🔇"}
+        </div>
+      </div>
+
+      {/* Participantes remotos */}
+      {participants.filter(p => p.id !== user?.id && p.id !== 'local').length > 0 && (
         <div style={{
           display: "grid",
-          gridTemplateColumns: `repeat(auto-fit, minmax(250px, 1fr))`,
-          gap: "16px",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: "12px",
           marginBottom: 16
         }}>
-          {/* Video local */}
-          <div style={{
-            background: "rgba(255,255,255,0.03)",
-            borderRadius: 8,
-            overflow: "hidden",
-            border: "1px solid rgba(255,255,255,0.05)",
-            aspectRatio: "4/3",
-            position: "relative"
-          }}>
-            <video
-              id="localVideo"
-              autoPlay
-              playsInline
-              muted
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                background: "#111"
-              }}
-            />
-            <div style={{
-              position: "absolute",
-              bottom: 8,
-              left: 8,
-              background: "rgba(0,0,0,0.7)",
-              padding: "4px 12px",
-              borderRadius: 12,
-              fontSize: 12,
-              color: "white"
-            }}>
-              {myName} {isMuted ? "🔇" : "🎤"} {isCameraOn ? "📹" : ""}
-            </div>
-          </div>
-
-          {/* Participantes remotos */}
           {participants.filter(p => p.id !== user?.id && p.id !== 'local').map((p) => (
             <div key={p.id} style={{
               background: "rgba(255,255,255,0.03)",
               borderRadius: 8,
               overflow: "hidden",
               border: "1px solid rgba(255,255,255,0.05)",
-              aspectRatio: "4/3",
+              aspectRatio: "16/9",
               position: "relative",
               display: "flex",
               alignItems: "center",
               justifyContent: "center"
             }}>
-              {p.stream ? (
-                <video
-                  autoPlay
-                  playsInline
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    background: "#111"
-                  }}
-                  ref={(el) => {
-                    if (el && p.stream) {
-                      el.srcObject = p.stream
-                    }
-                  }}
-                />
-              ) : (
-                <div style={{
-                  fontSize: 48,
-                  color: "#6b7280"
-                }}>
-                  🎵
-                </div>
-              )}
+              <div style={{
+                fontSize: 48,
+                color: "#6b7280"
+              }}>
+                🎵
+              </div>
               <div style={{
                 position: "absolute",
                 bottom: 8,
@@ -658,87 +699,87 @@ export default function JamWebPage() {
                 fontSize: 12,
                 color: "white"
               }}>
-                {p.name} {p.isMuted ? "🔇" : "🎤"}
+                {p.name}
               </div>
             </div>
           ))}
         </div>
+      )}
 
-        {/* Chat */}
+      {/* Chat */}
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "200px",
+        background: "rgba(255,255,255,0.03)",
+        borderRadius: 8,
+        border: "1px solid rgba(255,255,255,0.05)",
+        overflow: "hidden"
+      }}>
         <div style={{
+          flex: 1,
+          padding: "12px 16px",
+          overflowY: "auto",
           display: "flex",
           flexDirection: "column",
-          height: "200px",
-          background: "rgba(255,255,255,0.03)",
-          borderRadius: 8,
-          border: "1px solid rgba(255,255,255,0.05)",
-          overflow: "hidden"
+          gap: "4px"
         }}>
-          <div style={{
-            flex: 1,
-            padding: "12px 16px",
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column",
-            gap: "4px"
-          }}>
-            {messages.map((msg) => (
-              <div key={msg.id} style={{
-                padding: "4px 12px",
-                background: msg.user === "Sistema" ? "rgba(16,185,129,0.05)" : "rgba(255,255,255,0.03)",
-                borderRadius: 6,
-                fontSize: 14
-              }}>
-                <span style={{ color: msg.user === "Sistema" ? "#10b981" : "#6b7280", fontWeight: "bold" }}>
-                  {msg.user === "Sistema" ? "📢 " : msg.user}:
-                </span>
-                <span style={{ color: "white", marginLeft: 4 }}>{msg.text}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{
-            display: "flex",
-            padding: "8px 12px",
-            borderTop: "1px solid rgba(255,255,255,0.05)",
-            gap: "8px"
-          }}>
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
-              placeholder="Escribe un mensaje..."
-              style={{
-                flex: 1,
-                padding: "8px 12px",
-                borderRadius: 6,
-                border: "1px solid #333",
-                background: "rgba(255,255,255,0.05)",
-                color: "white",
-                fontSize: 14
-              }}
-            />
-            <button
-              onClick={sendMessage}
-              style={{
-                padding: "8px 16px",
-                background: "#10b981",
-                color: "white",
-                border: "none",
-                borderRadius: 6,
-                cursor: "pointer",
-                fontWeight: "bold"
-              }}
-            >
-              Enviar
-            </button>
-          </div>
+          {messages.map((msg) => (
+            <div key={msg.id} style={{
+              padding: "4px 12px",
+              background: msg.user === "Sistema" ? "rgba(16,185,129,0.05)" : "rgba(255,255,255,0.03)",
+              borderRadius: 6,
+              fontSize: 14
+            }}>
+              <span style={{ color: msg.user === "Sistema" ? "#10b981" : "#6b7280", fontWeight: "bold" }}>
+                {msg.user === "Sistema" ? "📢 " : msg.user}:
+              </span>
+              <span style={{ color: "white", marginLeft: 4 }}>{msg.text}</span>
+            </div>
+          ))}
         </div>
+        <div style={{
+          display: "flex",
+          padding: "8px 12px",
+          borderTop: "1px solid rgba(255,255,255,0.05)",
+          gap: "8px"
+        }}>
+          <input
+            type="text"
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+            placeholder="Escribe un mensaje..."
+            style={{
+              flex: 1,
+              padding: "8px 12px",
+              borderRadius: 6,
+              border: "1px solid #333",
+              background: "rgba(255,255,255,0.05)",
+              color: "white",
+              fontSize: 14
+            }}
+          />
+          <button
+            onClick={sendMessage}
+            style={{
+              padding: "8px 16px",
+              background: "#10b981",
+              color: "white",
+              border: "none",
+              borderRadius: 6,
+              cursor: "pointer",
+              fontWeight: "bold"
+            }}
+          >
+            Enviar
+          </button>
+        </div>
+      </div>
 
-        <div style={{ marginTop: 12, textAlign: "center", color: "#6b7280", fontSize: 12 }}>
-          💡 Comparte el código <strong>{roomId}</strong> con otros músicos para que se unan
-        </div>
-      </main>
+      <div style={{ marginTop: 12, textAlign: "center", color: "#6b7280", fontSize: 12 }}>
+        💡 Comparte el código <strong>{roomId}</strong> con otros músicos
+      </div>
     </div>
   )
 }
