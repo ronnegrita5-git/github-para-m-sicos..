@@ -102,7 +102,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     }
 
     try {
-      // 1. Crear un nuevo proyecto copiando los datos
       const { data: newProject, error: forkError } = await supabase
         .from("projects")
         .insert({
@@ -116,7 +115,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
       if (forkError) throw forkError
 
-      // 2. Copiar las pistas del proyecto original
       for (const track of tracks) {
         await supabase
           .from("tracks")
@@ -148,7 +146,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         if (error) throw error
         setProject(data)
         
-        // Verificar si este proyecto es un fork (tiene el mismo nombre con "Fork de")
         if (data.name && data.name.startsWith("Fork de ")) {
           setIsForked(true)
         }
@@ -469,7 +466,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                         {!hasAudio && (
                           <span style={{ color: "#6b7280", fontSize: 12 }}>Sin audio</span>
                         )}
-                        {/* 🗑️ Botón de eliminar pista - SOLO para el creador */}
                         {isCreator && (
                           <button
                             onClick={(e) => {
