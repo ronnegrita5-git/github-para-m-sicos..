@@ -56,6 +56,23 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       if (event === 'SIGNED_OUT') {
         setUser(null)
         localStorage.removeItem('user')
+      } else if (event === 'SIGNED_IN' && session?.user) {
+        const u = session.user
+        const syncUser = {
+          id: u.id,
+          email: u.email || '',
+          first_name: '',
+          last_name: '',
+          city: '',
+          country: '',
+          instrument_id: '',
+          music_genre: '',
+          bio: '',
+          avatar_url: '',
+          created_at: new Date().toISOString(),
+        }
+        setUser(syncUser)
+        localStorage.setItem('user', JSON.stringify(syncUser))
       }
     })
 
@@ -145,7 +162,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
           await supabase!.from('users').insert({
             id: loggedUser.id,
             email: loggedUser.email,
-          }).maybeSingle()
+          })
         } else {
           loggedUser = {
             id: userData.id,
