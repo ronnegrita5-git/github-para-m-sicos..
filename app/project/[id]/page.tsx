@@ -47,6 +47,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     }
   }
 
+  // ✅ Eliminar pista
   const deleteTrack = async (trackId: string) => {
     if (!user) {
       alert("Debes iniciar sesión para eliminar pistas")
@@ -72,6 +73,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     }
   }
 
+  // ✅ Eliminar proyecto
   const deleteProject = async () => {
     if (!user) {
       alert("Debes iniciar sesión para eliminar el proyecto")
@@ -466,6 +468,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                         {!hasAudio && (
                           <span style={{ color: "#6b7280", fontSize: 12 }}>Sin audio</span>
                         )}
+                        {/* 🗑️ Botón eliminar pista - SOLO CREADOR */}
                         {isCreator && (
                           <button
                             onClick={(e) => {
