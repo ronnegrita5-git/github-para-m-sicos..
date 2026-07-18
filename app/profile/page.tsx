@@ -26,22 +26,15 @@ export default function ProfilePage() {
   const [message, setMessage] = useState<string | null>(null)
   const [messageType, setMessageType] = useState<"success" | "error" | null>(null)
 
-  // Cargar instrumentos
   useEffect(() => {
     const fetchInstruments = async () => {
       try {
-        console.log("📡 Cargando instrumentos...")
         const { data, error } = await supabase
           .from("instruments")
           .select("id, name, category")
           .order("name", { ascending: true })
 
-        if (error) {
-          console.error("❌ Error cargando instrumentos:", error)
-          throw error
-        }
-        
-        console.log("✅ Instrumentos cargados:", data)
+        if (error) throw error
         setInstruments(data || [])
       } catch (error) {
         console.error("Error cargando instrumentos:", error)
@@ -53,7 +46,6 @@ export default function ProfilePage() {
     fetchInstruments()
   }, [])
 
-  // Cargar datos del usuario
   useEffect(() => {
     if (user) {
       const loadUserData = async () => {
@@ -131,6 +123,8 @@ export default function ProfilePage() {
           created_at: updatedUser.created_at,
         }
         localStorage.setItem('user', JSON.stringify(userData))
+        // Recargar la página para actualizar el estado
+        window.location.reload()
       }
 
     } catch (error) {
@@ -306,7 +300,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* 🎸 DESPLEGABLE DE INSTRUMENTOS */}
           <div style={{ marginBottom: 16, textAlign: "left" }}>
             <label style={{ display: "block", marginBottom: 6, color: "#9ca3af" }}>
               Instrumento que tocas
@@ -326,13 +319,11 @@ export default function ProfilePage() {
             >
               <option value="">Selecciona un instrumento</option>
               {loadingInstruments ? (
-                <option disabled>⏳ Cargando instrumentos...</option>
-              ) : instruments.length === 0 ? (
-                <option disabled>❌ No hay instrumentos disponibles</option>
+                <option disabled>Cargando instrumentos...</option>
               ) : (
                 instruments.map((inst) => (
                   <option key={inst.id} value={inst.id}>
-                    {inst.name} {inst.category ? `(${inst.category})` : ""}
+                    {inst.name} {inst.category ? `(${inst.category})` : ''}
                   </option>
                 ))
               )}
@@ -390,7 +381,7 @@ export default function ProfilePage() {
             />
           </div>
 
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: "12px" }}>
             <button
               type="submit"
               disabled={saving}
